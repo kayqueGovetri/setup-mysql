@@ -44,7 +44,7 @@ Restart-Service MySQL
 Start-Sleep -Seconds 10
 
 Write-Host "### Setting root password and auth plugin"
-& 'C:\tools\mysql\current\bin\mysql.exe' -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$password'; FLUSH PRIVILEGES;"
+& 'C:\tools\mysql\current\bin\mysql.exe' -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$password'; FLUSH PRIVILEGES;"
 
 Write-Host "### Testing MySQL connection on 127.0.0.1:$port"
 try {
