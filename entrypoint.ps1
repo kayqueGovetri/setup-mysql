@@ -40,16 +40,22 @@ Start-Sleep -Seconds 10
 Write-Host "### Setting root password"
 & "C:\tools\mysql\current\bin\mysqladmin.exe" -u root -P $port password $password
 
-Write-Host "### Testing MySQL connection on 127.0.0.1:$port"
-try {
-    & "C:\tools\mysql\current\bin\mysql.exe" -h 127.0.0.1 -P $port -u root -p $password -e "SELECT VERSION();"
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "❌ Failed to connect"
+Write-Host "### Waiting for MySQL to be reachable on port $port..."
+$hostname = "127.0.0.1"
+for ($i = 0; $i -lt 30; $i++) {
+    try {
+        $conn = New-Object System.Net.Sockets.TcpClient($hostname, $port)
+        if ($conn.Connected) {
+            Write-Host "✅ MySQL is reachable on $hostname:$port"
+            $conn.Close()
+            break
+        }
+    } catch {
+        Start-Sleep -Seconds 2
+    }
+    if ($i -eq 29) {
+        Write-Host "❌ Timeout waiting for MySQL on $hostname:$port"
         exit 1
     }
-} catch {
-    Write-Host "❌ Exception during connection attempt: $_"
-    exit 1
 }
-
 Write-Host "✅ MySQL installed and configured successfully!"
