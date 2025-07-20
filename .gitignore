@@ -1,0 +1,65 @@
+# Logs
+*.log
+/tmp/
+/var/log/
+
+# Node modules (se usar Node.js)
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDEs / Editors
+
+# VSCode
+.vscode/
+.history/
+
+# JetBrains (IntelliJ, PyCharm, WebStorm, etc.)
+.idea/
+*.iml
+out/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Eclipse
+.project
+.metadata/
+*.tmp
+*.bak
+*.swp
+*~.nib
+.localhistory/
+
+# GitHub Actions runner files (geral)
+.github/actions/**/node_modules/
+.github/actions/**/dist/
+.github/actions/**/build/
+
+# Ignore environment files
+.env
+.env.local
+.env.*.local
+
+# Ignore Docker files if você não quiser versionar
+Dockerfile
+docker-compose.yml

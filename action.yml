@@ -1,0 +1,32 @@
+name: "Setup MySQL Cross-Platform"
+description: "Installs and configures MySQL on macOS, Linux, and Windows"
+author: "Kayque Govetri"
+
+inputs:
+  mysql_root_password:
+    description: "Root password for MySQL"
+    required: false
+    default: "root"
+  mysql_port:
+    description: "Port for MySQL server"
+    required: false
+    default: "32768"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run macOS script
+      if: runner.os == 'macOS'
+      shell: bash
+      run: ./entrypoint-macos.sh
+
+    - name: Run Linux script
+      if: runner.os == 'Linux'
+      shell: bash
+      run: ./entrypoint-linux.sh
+
+    - name: Run Windows script
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: ./entrypoint.ps1
+
