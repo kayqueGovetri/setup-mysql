@@ -1,6 +1,5 @@
 $ErrorActionPreference = "Stop"
 
-# Recebe inputs com fallback para valores padrão
 $port = $env:INPUT_MYSQL_PORT
 if (-not $port) { $port = 32768 }
 
@@ -43,7 +42,7 @@ Write-Host "### Setting root password"
 
 Write-Host "### Testing MySQL connection on 127.0.0.1:$port"
 try {
-    & "C:\tools\mysql\current\bin\mysql.exe" -h 127.0.0.1 -P $port -u root -p$password -e "SELECT VERSION();"
+    & "C:\tools\mysql\current\bin\mysql.exe" -h 127.0.0.1 -P $port -u root -p $password -e "SELECT VERSION();"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "❌ Failed to connect"
         exit 1
