@@ -46,7 +46,7 @@ for ($i = 0; $i -lt 30; $i++) {
     try {
         $conn = New-Object System.Net.Sockets.TcpClient($hostname, $port)
         if ($conn.Connected) {
-            Write-Host "✅ MySQL is reachable on $hostname:$port"
+            Write-Host "✅ MySQL is reachable on ${hostname}:${port}"
             $conn.Close()
             break
         }
@@ -54,7 +54,7 @@ for ($i = 0; $i -lt 30; $i++) {
         Start-Sleep -Seconds 2
     }
     if ($i -eq 29) {
-        Write-Host "❌ Timeout waiting for MySQL on $hostname:$port"
+        Write-Host "❌ Timeout waiting for MySQL on ${hostname}:${port}"
         exit 1
     }
 }
