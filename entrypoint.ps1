@@ -1,7 +1,8 @@
 $ErrorActionPreference = "Stop"
 
+# Recebe inputs com fallback para valores padrão
 $port = $env:INPUT_MYSQL_PORT
-if (-not $port) { $port = 3306 }
+if (-not $port) { $port = 32768 }
 
 $password = $env:INPUT_MYSQL_ROOT_PASSWORD
 if (-not $password) { $password = "root" }
@@ -21,18 +22,14 @@ if (Test-Path $myIniPath) {
 
     if ($content -match 'port=') {
         $newContent = $content -replace 'port=\d+', "port=$port"
-    } else {
+    }
+    else {
         $newContent = $content -replace '\[mysqld\]', "[mysqld]`nport=$port"
     }
 
-    if ($newContent -match 'bind-address=') {
-        $newContent = $newContent -replace 'bind-address=.*', 'bind-address=127.0.0.1'
-    } else {
-        $newContent = $newContent -replace '\[mysqld\]', "[mysqld]`nbind-address=127.0.0.1"
-    }
-
     $newContent | Set-Content $myIniPath
-} else {
+}
+else {
     Write-Error "my.ini not found at $myIniPath"
     exit 1
 }
@@ -41,13 +38,8 @@ Write-Host "### Restarting MySQL service"
 Restart-Service MySQL
 Start-Sleep -Seconds 10
 
-Write-Host "### Trying to set root password with mysqladmin"
-try {
-    & 'C:\tools\mysql\current\bin\mysqladmin.exe' -u root password $password
-    Write-Host "Password set successfully using mysqladmin."
-} catch {
-    Write-Warning "Could not set password using mysqladmin.exe. Maybe password already set."
-}
+Write-Host "### Setting root password"
+& "C:\tools\mysql\current\bin\mysqladmin.exe" -u root -P $port password $password
 
 Write-Host "### Testing MySQL connection on 127.0.0.1:$port"
 try {
@@ -61,4 +53,4 @@ try {
     exit 1
 }
 
-Write-Host "✅ MySQL is installed and configured successfully!"
+Write-Host "✅ MySQL installed and configured successfully!"
