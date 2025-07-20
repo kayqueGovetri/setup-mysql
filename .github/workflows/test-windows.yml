@@ -22,3 +22,6 @@ jobs:
         with:
           mysql_root_password: test123
           mysql_port: 3307
+          mysql_database: my_db
+          mysql_user: my_user
+          mysql_password: my_pass

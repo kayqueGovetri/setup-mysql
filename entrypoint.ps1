@@ -3,8 +3,17 @@ $ErrorActionPreference = "Stop"
 $port = $env:INPUT_MYSQL_PORT
 if (-not $port) { $port = 32768 }
 
-$password = $env:INPUT_MYSQL_ROOT_PASSWORD
-if (-not $password) { $password = "root" }
+$rootPassword = $env:INPUT_MYSQL_ROOT_PASSWORD
+if (-not $rootPassword) { $rootPassword = "root" }
+
+$dbName = $env:INPUT_MYSQL_DATABASE
+if (-not $dbName) { $dbName = "test" }
+
+$user = $env:INPUT_MYSQL_USER
+if (-not $user) { $user = "test" }
+
+$userPassword = $env:INPUT_MYSQL_PASSWORD
+if (-not $userPassword) { $userPassword = "test" }
 
 Write-Host "### Installing MySQL via Chocolatey"
 choco install mysql -y
@@ -38,7 +47,7 @@ Restart-Service MySQL
 Start-Sleep -Seconds 10
 
 Write-Host "### Setting root password"
-& "C:\tools\mysql\current\bin\mysqladmin.exe" -u root -P $port password $password
+& "C:\tools\mysql\current\bin\mysqladmin.exe" -u root -P $port password $rootPassword
 
 Write-Host "### Waiting for MySQL to be reachable on port $port..."
 $hostname = "127.0.0.1"
@@ -58,4 +67,14 @@ for ($i = 0; $i -lt 30; $i++) {
         exit 1
     }
 }
-Write-Host "✅ MySQL installed and configured successfully!"
+
+Write-Host "### Creating database '$dbName' and user '$user'"
+
+& "C:\tools\mysql\current\bin\mysql.exe" -u root -P $port -proot -e @"
+CREATE DATABASE IF NOT EXISTS \`$dbName\`;
+CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
+GRANT ALL PRIVILEGES ON \`$dbName\`.* TO '$user'@'%';
+FLUSH PRIVILEGES;
+"@
+
+Write-Host "✅ MySQL installed, configured, and user/database created successfully!"
