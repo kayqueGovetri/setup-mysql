@@ -4,14 +4,22 @@ author: "Kayque Govetri"
 
 inputs:
   mysql_root_password:
-    description: "Root password for MySQL"
+    description: 'Password for the MySQL root user'
     required: false
-    default: "root"
+    default: 'root'
   mysql_port:
-    description: "Port for MySQL server"
+    description: 'Port to expose MySQL on the host'
     required: false
-    default: "32768"
-
+    default: '32768'
+  mysql_database:
+    description: 'Database to create on container start'
+    required: false
+  mysql_user:
+    description: 'User to create on container start'
+    required: false
+  mysql_password:
+    description: 'Password for the created user'
+    required: false
 runs:
   using: "composite"
   steps:
