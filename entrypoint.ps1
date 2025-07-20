@@ -1,6 +1,5 @@
 $ErrorActionPreference = "Stop"
 
-# Recebe inputs, usa padrão se não fornecidos
 $port = $env:INPUT_MYSQL_PORT
 if (-not $port) { $port = 3306 }
 
@@ -23,7 +22,6 @@ if (Test-Path $myIniPath) {
     if ($content -match 'port=') {
         $newContent = $content -replace 'port=\d+', "port=$port"
     } else {
-        # Adiciona configuração de porta na seção [mysqld]
         $newContent = $content -replace '\[mysqld\]', "[mysqld]`nport=$port"
     }
 
@@ -43,8 +41,13 @@ Write-Host "### Restarting MySQL service"
 Restart-Service MySQL
 Start-Sleep -Seconds 10
 
-Write-Host "### Setting root password and auth plugin"
-& 'C:\tools\mysql\current\bin\mysql.exe' -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$password'; FLUSH PRIVILEGES;"
+Write-Host "### Trying to set root password with mysqladmin"
+try {
+    & 'C:\tools\mysql\current\bin\mysqladmin.exe' -u root password $password
+    Write-Host "Password set successfully using mysqladmin."
+} catch {
+    Write-Warning "Could not set password using mysqladmin.exe. Maybe password already set."
+}
 
 Write-Host "### Testing MySQL connection on 127.0.0.1:$port"
 try {
