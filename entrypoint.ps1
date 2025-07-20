@@ -70,11 +70,14 @@ for ($i = 0; $i -lt 30; $i++) {
 
 Write-Host "### Creating database '$dbName' and user '$user'"
 
-& "C:\tools\mysql\current\bin\mysql.exe" -u root -P $port -proot -e @"
-CREATE DATABASE IF NOT EXISTS \`$dbName\`;
+$sql = @"
+CREATE DATABASE IF NOT EXISTS `$dbName`;
 CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
-GRANT ALL PRIVILEGES ON \`$dbName\`.* TO '$user'@'%';
+GRANT ALL PRIVILEGES ON `$dbName`.* TO '$user'@'%';
 FLUSH PRIVILEGES;
 "@
 
+& "C:\tools\mysql\current\bin\mysql.exe" -u root -P $port -p$rootPassword -e $sql
+
 Write-Host "✅ MySQL installed, configured, and user/database created successfully!"
+
