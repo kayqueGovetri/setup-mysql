@@ -1,0 +1,24 @@
+name: Test MySQL on Ubuntu
+
+on:
+  push:
+    paths:
+      - 'entrypoint-linux.sh'
+      - 'action.yml'
+  pull_request:
+    paths:
+      - 'entrypoint-linux.sh'
+      - 'action.yml'
+  workflow_dispatch:
+
+jobs:
+  test-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run local action
+        uses: ./
+        with:
+          mysql_root_password: test123
+          mysql_port: 3307

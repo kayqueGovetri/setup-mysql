@@ -1,0 +1,24 @@
+name: Test MySQL on Windows
+
+on:
+  push:
+    paths:
+      - 'entrypoint.ps1'
+      - 'action.yml'
+  pull_request:
+    paths:
+      - 'entrypoint.ps1'
+      - 'action.yml'
+  workflow_dispatch:
+
+jobs:
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run local action
+        uses: ./
+        with:
+          mysql_root_password: test123
+          mysql_port: 3307

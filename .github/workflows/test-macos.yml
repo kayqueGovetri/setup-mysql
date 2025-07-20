@@ -1,0 +1,24 @@
+name: Test MySQL on macOS
+
+on:
+  push:
+    paths:
+      - 'entrypoint-macos.sh'
+      - 'action.yml'
+  pull_request:
+    paths:
+      - 'entrypoint-macos.sh'
+      - 'action.yml'
+  workflow_dispatch:
+
+jobs:
+  test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run local action
+        uses: ./
+        with:
+          mysql_root_password: test123
+          mysql_port: 3307

@@ -1,0 +1,26 @@
+name: Run All OS Tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  trigger-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Windows Test
+        run: |
+          gh workflow run test-windows.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger Linux Test
+        run: |
+          gh workflow run test-linux.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger macOS Test
+        run: |
+          gh workflow run test-macos.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
