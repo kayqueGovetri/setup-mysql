@@ -1,5 +1,6 @@
 $ErrorActionPreference = "Stop"
 
+# Recebe inputs, usa padrão se não fornecidos
 $port = $env:INPUT_MYSQL_PORT
 if (-not $port) { $port = 3306 }
 
@@ -9,31 +10,45 @@ if (-not $password) { $password = "root" }
 Write-Host "### Installing MySQL via Chocolatey"
 choco install mysql -y
 
-Write-Host "### Waiting for MySQL service to start"
-Start-Sleep -Seconds 20
+Write-Host "### Starting MySQL service"
+Start-Service MySQL
+Start-Sleep -Seconds 15
 
-$myIniPath = "C:\ProgramData\MySQL\MySQL Server 8.0\my.ini"
+$myIniPath = 'C:\tools\mysql\current\my.ini'
 
-if (-Not (Test-Path $myIniPath)) {
-    Write-Warning "my.ini not found at $myIniPath. Skipping port configuration."
+if (Test-Path $myIniPath) {
+    Write-Host "### Configuring my.ini to use port $port"
+    $content = Get-Content $myIniPath
+
+    if ($content -match 'port=') {
+        $newContent = $content -replace 'port=\d+', "port=$port"
+    } else {
+        # Adiciona configuração de porta na seção [mysqld]
+        $newContent = $content -replace '\[mysqld\]', "[mysqld]`nport=$port"
+    }
+
+    if ($newContent -match 'bind-address=') {
+        $newContent = $newContent -replace 'bind-address=.*', 'bind-address=127.0.0.1'
+    } else {
+        $newContent = $newContent -replace '\[mysqld\]', "[mysqld]`nbind-address=127.0.0.1"
+    }
+
+    $newContent | Set-Content $myIniPath
 } else {
-    Write-Host "### Updating my.ini to set port $port and bind-address=127.0.0.1"
-    (Get-Content $myIniPath) `
-      -replace '^(port\s*=).*$', "port=$port" `
-      -replace '^(bind-address\s*=).*$', "bind-address=127.0.0.1" |
-      Set-Content $myIniPath
+    Write-Error "my.ini not found at $myIniPath"
+    exit 1
 }
 
 Write-Host "### Restarting MySQL service"
-Restart-Service -Name MySQL -Force -ErrorAction SilentlyContinue
+Restart-Service MySQL
 Start-Sleep -Seconds 10
 
 Write-Host "### Setting root password and auth plugin"
-& "C:\tools\mysql\bin\mysql.exe" -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$password'; FLUSH PRIVILEGES;"
+& 'C:\tools\mysql\current\bin\mysql.exe' -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$password'; FLUSH PRIVILEGES;"
 
 Write-Host "### Testing MySQL connection on 127.0.0.1:$port"
 try {
-    & "C:\tools\mysql\bin\mysql.exe" -h 127.0.0.1 -P $port -u root -p$password -e "SELECT VERSION();"
+    & "C:\tools\mysql\current\bin\mysql.exe" -h 127.0.0.1 -P $port -u root -p$password -e "SELECT VERSION();"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "❌ Failed to connect"
         exit 1
