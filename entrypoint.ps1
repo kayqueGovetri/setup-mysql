@@ -50,7 +50,7 @@ Start-Sleep -Seconds 10
 # Create initialization SQL
 # --------------------------------
 @"
-ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
+ALTER USER 'root'@'localhost' IDENTIFIED BY '$rootPassword';
 CREATE DATABASE IF NOT EXISTS \`$dbName\`;
 CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
 GRANT ALL PRIVILEGES ON \`$dbName\`.* TO '$user'@'%';
