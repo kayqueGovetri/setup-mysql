@@ -68,10 +68,10 @@ if (-not $mysqlExe) {
 }
 
 # --------------------------------
-# Execute SQL file
+# Execute SQL file (no password yet)
 # --------------------------------
 Start-Sleep -Seconds 10
-& $mysqlExe.FullName --protocol=TCP -u root --password=$rootPassword -P $port --execute="source $initSqlPath"
+& $mysqlExe.FullName --protocol=TCP -u root -P $port --execute="source $initSqlPath"
 
 # --------------------------------
 # Cleanup
