@@ -1,58 +1,33 @@
-$ErrorActionPreference = "Stop"
+$initSqlPath = "C:\tools\mysql\init.sql"
+$myIniPath = "C:\tools\mysql\current\my.ini"
 
-$port = $env:INPUT_MYSQL_PORT
-if (-not $port) { $port = 32768 }
-
-$rootPassword = $env:INPUT_MYSQL_ROOT_PASSWORD
-if (-not $rootPassword) { $rootPassword = "root" }
-
-$dbName = $env:INPUT_MYSQL_DATABASE
-if (-not $dbName) { $dbName = "test" }
-
-$user = $env:INPUT_MYSQL_USER
-if (-not $user) { $user = "test" }
-
-$userPassword = $env:INPUT_MYSQL_PASSWORD
-if (-not $userPassword) { $userPassword = "test" }
-
-Write-Host "### Installing MySQL via Chocolatey with custom port $port"
-choco install mysql --params "/port:$port" -y
-
-Write-Host "### Starting MySQL service"
-Start-Service MySQL
-Start-Sleep -Seconds 10
-
-Write-Host "### Setting root password"
-& "C:\tools\mysql\current\bin\mysqladmin.exe" -u root -P $port password $rootPassword
-
-Write-Host "### Waiting for MySQL to be reachable on port $port..."
-$hostname = "127.0.0.1"
-for ($i = 0; $i -lt 30; $i++) {
-    try {
-        $conn = New-Object System.Net.Sockets.TcpClient($hostname, $port)
-        if ($conn.Connected) {
-            Write-Host "✅ MySQL is reachable on ${hostname}:${port}"
-            $conn.Close()
-            break
-        }
-    } catch {
-        Start-Sleep -Seconds 2
-    }
-    if ($i -eq 29) {
-        Write-Error "❌ Timeout waiting for MySQL on ${hostname}:${port}"
-        exit 1
-    }
-}
-
-Write-Host "### Creating database '$dbName' and user '$user'"
-
-$sql = @"
+# Create the SQL file with commands
+@"
+ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
 CREATE DATABASE IF NOT EXISTS \`$dbName\`;
 CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
 GRANT ALL PRIVILEGES ON \`$dbName\`.* TO '$user'@'%';
 FLUSH PRIVILEGES;
-"@
+"@ | Out-File -Encoding ASCII $initSqlPath
 
-& "C:\tools\mysql\current\bin\mysql.exe" -u root -P $port -p$rootPassword -e $sql
+# Install MySQL via Chocolatey with custom port (example)
+choco install mysql --params "/port:$port" -y
 
-Write-Host "✅ MySQL installed, configured, and ready to use!"
+# Modify my.ini to use init-file
+$content = Get-Content $myIniPath
+if ($content -notmatch 'init-file=') {
+    Add-Content $myIniPath "`ninit-file=$initSqlPath"
+} else {
+    $content = $content -replace 'init-file=.*', "init-file=$initSqlPath"
+    $content | Set-Content $myIniPath
+}
+
+# Restart MySQL service to run init-file and apply settings
+Restart-Service MySQL
+
+# Optional: after start, remove the init-file line from my.ini to avoid repeated execution
+Start-Sleep -Seconds 10
+$content = Get-Content $myIniPath | Where-Object { $_ -notmatch 'init-file=' }
+$content | Set-Content $myIniPath
+
+Write-Host "✅ MySQL installed and configured with init-file for database and user creation."
