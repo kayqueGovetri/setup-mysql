@@ -58,14 +58,20 @@ FLUSH PRIVILEGES;
 "@ | Out-File -Encoding ASCII -FilePath $initSqlPath
 
 # --------------------------------
+# Locate mysql.exe
+# --------------------------------
+$mysqlExe = Get-ChildItem -Path "$installLocation" -Recurse -Filter "mysql.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+
+if (-not $mysqlExe) {
+    Write-Error "❌ mysql.exe not found under $installLocation"
+    exit 1
+}
+
+# --------------------------------
 # Execute SQL file
 # --------------------------------
-$mysqlExe = "$installLocation\current\bin\mysql.exe"
-
-# Wait for service to fully initialize
 Start-Sleep -Seconds 10
-
-& $mysqlExe --protocol=TCP -u root --password=$rootPassword -P $port --execute="source $initSqlPath"
+& $mysqlExe.FullName --protocol=TCP -u root --password=$rootPassword -P $port --execute="source $initSqlPath"
 
 # --------------------------------
 # Cleanup
