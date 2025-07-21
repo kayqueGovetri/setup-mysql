@@ -17,13 +17,14 @@ if (-not $userPassword) { $userPassword = "test" }
 
 $initSqlPath = "C:\tools\mysql\init.sql"
 $myIniPath = "C:\tools\mysql\current\my.ini"
+$mysqlBaseDir = "C:\tools\mysql"
 
-Write-Host "### Ensuring directory C:\tools\mysql exists"
-if (-not (Test-Path "C:\tools\mysql")) {
-    New-Item -ItemType Directory -Path "C:\tools\mysql" -Force | Out-Null
+Write-Host "### Ensuring base directory $mysqlBaseDir exists"
+if (-not (Test-Path $mysqlBaseDir)) {
+    New-Item -ItemType Directory -Path $mysqlBaseDir -Force | Out-Null
 }
 
-Write-Host "### Creating SQL initialization file"
+Write-Host "### Creating SQL initialization file at $initSqlPath"
 @"
 ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
 CREATE DATABASE IF NOT EXISTS \`$dbName\`;
@@ -32,26 +33,39 @@ GRANT ALL PRIVILEGES ON \`$dbName\`.* TO '$user'@'%';
 FLUSH PRIVILEGES;
 "@ | Out-File -Encoding ASCII $initSqlPath
 
+Write-Host "### Creating my.ini file at $myIniPath with custom port and init-file"
+# Conteúdo básico do my.ini com configurações essenciais
+$myIniContent = @"
+[mysqld]
+port=$port
+basedir=$mysqlBaseDir\current
+datadir=$mysqlBaseDir\data
+init-file=$initSqlPath
+sql_mode=NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES
+character-set-server=utf8mb4
+collation-server=utf8mb4_unicode_ci
+skip-name-resolve
+"@
+
+# Criar diretório current caso não exista (Chocolatey cria depois da instalação, mas criamos para evitar erro)
+$currentDir = Join-Path $mysqlBaseDir "current"
+if (-not (Test-Path $currentDir)) {
+    New-Item -ItemType Directory -Path $currentDir -Force | Out-Null
+}
+
+# Salvar my.ini no caminho esperado (Chocolatey espera em current)
+$myIniDir = Split-Path $myIniPath
+if (-not (Test-Path $myIniDir)) {
+    New-Item -ItemType Directory -Path $myIniDir -Force | Out-Null
+}
+
+$myIniContent | Out-File -Encoding ASCII $myIniPath
+
 Write-Host "### Installing MySQL via Chocolatey with custom port $port"
 choco install mysql --params "/port:$port" -y
 
-Write-Host "### Modifying my.ini to set init-file for SQL initialization"
-if (-not (Test-Path $myIniPath)) {
-    Write-Error "my.ini not found at $myIniPath"
-    exit 1
-}
-
-$content = Get-Content $myIniPath
-
-if ($content -notmatch 'init-file=') {
-    Add-Content $myIniPath "`ninit-file=$initSqlPath"
-} else {
-    $content = $content -replace 'init-file=.*', "init-file=$initSqlPath"
-    $content | Set-Content $myIniPath
-}
-
-Write-Host "### Restarting MySQL service to run init-file and apply settings"
-Restart-Service MySQL
+Write-Host "### Starting MySQL service"
+Start-Service MySQL
 
 Write-Host "### Waiting for 10 seconds to let init-file run"
 Start-Sleep -Seconds 10
@@ -59,6 +73,9 @@ Start-Sleep -Seconds 10
 Write-Host "### Removing init-file line from my.ini to prevent repeated execution"
 $content = Get-Content $myIniPath | Where-Object { $_ -notmatch 'init-file=' }
 $content | Set-Content $myIniPath
+
+Write-Host "### Restarting MySQL service without init-file"
+Restart-Service MySQL
 
 Write-Host "### Verifying MySQL availability on port $port"
 for ($i=0; $i -lt 30; $i++) {
