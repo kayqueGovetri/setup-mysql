@@ -51,11 +51,12 @@ Start-Sleep -Seconds 10
 # --------------------------------
 @"
 ALTER USER 'root'@'localhost' IDENTIFIED BY '$rootPassword';
-CREATE DATABASE IF NOT EXISTS \`$dbName\`;
+CREATE DATABASE IF NOT EXISTS `$dbName`;
 CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
-GRANT ALL PRIVILEGES ON \`$dbName\`.* TO '$user'@'%';
+GRANT ALL PRIVILEGES ON `$dbName`.* TO '$user'@'%';
 FLUSH PRIVILEGES;
 "@ | Out-File -Encoding ASCII -FilePath $initSqlPath
+
 
 # --------------------------------
 # Locate mysql.exe
