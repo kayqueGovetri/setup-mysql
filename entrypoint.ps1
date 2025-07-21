@@ -36,8 +36,7 @@ if (Test-Path $myIniPath) {
     }
 
     $newContent | Set-Content $myIniPath
-}
-else {
+} else {
     Write-Error "my.ini not found at $myIniPath"
     exit 1
 }
@@ -48,6 +47,14 @@ Start-Sleep -Seconds 10
 
 Write-Host "### Setting root password"
 & "C:\tools\mysql\current\bin\mysqladmin.exe" -u root -P $port password $rootPassword
+
+Write-Host "### Forcing native password plugin for root"
+$sqlFixRoot = @"
+ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
+FLUSH PRIVILEGES;
+"@
+
+& "C:\tools\mysql\current\bin\mysql.exe" -u root -h 127.0.0.1 --protocol=tcp -P $port -p$rootPassword -e $sqlFixRoot
 
 Write-Host "### Waiting for MySQL to be reachable on port $port..."
 $hostname = "127.0.0.1"
@@ -69,15 +76,13 @@ for ($i = 0; $i -lt 30; $i++) {
 }
 
 Write-Host "### Creating database '$dbName' and user '$user'"
-
-$sql = @"
+$sqlCreate = @"
 CREATE DATABASE IF NOT EXISTS `$dbName`;
 CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
 GRANT ALL PRIVILEGES ON `$dbName`.* TO '$user'@'%';
 FLUSH PRIVILEGES;
 "@
 
-& "C:\tools\mysql\current\bin\mysql.exe" -u root -P $port -p$rootPassword -e "SELECT VERSION();"
+& "C:\tools\mysql\current\bin\mysql.exe" -u root -h 127.0.0.1 --protocol=tcp -P $port -p$rootPassword -e $sqlCreate
 
 Write-Host "✅ MySQL installed, configured, and user/database created successfully!"
-
