@@ -65,7 +65,7 @@ $mysqlExe = "$installLocation\current\bin\mysql.exe"
 # Wait for service to fully initialize
 Start-Sleep -Seconds 10
 
-& $mysqlExe --protocol=TCP -u root -P $port < $initSqlPath
+& $mysqlExe --protocol=TCP -u root --password=$rootPassword -P $port --execute="source $initSqlPath"
 
 # --------------------------------
 # Cleanup
