@@ -14,18 +14,29 @@ brew install mysql
 echo "### Stopping any existing MySQL service"
 brew services stop mysql || true
 
+# Detecta prefixo correto, mantendo /opt/homebrew se existir
+if [ -d /opt/homebrew ]; then
+  BREW_PREFIX=/opt/homebrew
+else
+  BREW_PREFIX=$(brew --prefix)
+fi
+
+echo "Using Homebrew prefix: $BREW_PREFIX"
+
+sudo mkdir -p "$BREW_PREFIX/etc"
+
 echo "### Writing custom my.cnf"
-sudo tee /opt/homebrew/etc/my.cnf > /dev/null <<EOF
+sudo tee "$BREW_PREFIX/etc/my.cnf" > /dev/null <<EOF
 [mysqld]
 port=$PORT
 bind-address=0.0.0.0
 skip-networking=0
-log-error=/opt/homebrew/var/mysql/error.log
+log-error=$BREW_PREFIX/var/mysql/error.log
 EOF
 
 echo "### Starting mysqld manually with debug"
-nohup /opt/homebrew/opt/mysql/bin/mysqld \
-  --defaults-file=/opt/homebrew/etc/my.cnf \
+nohup "$BREW_PREFIX/opt/mysql/bin/mysqld" \
+  --defaults-file="$BREW_PREFIX/etc/my.cnf" \
   --user=$USER \
   --verbose \
   --log-error-verbosity=3 > /tmp/mysql.log 2>&1 &
@@ -46,7 +57,7 @@ fi
 echo "### Attempting MySQL root connection"
 if ! mysql -h 127.0.0.1 -P $PORT -u root -p"$ROOT_PASSWORD" -e "SELECT VERSION();"; then
     echo "❌ Failed to connect to MySQL as root"
-    tail -n 100 /opt/homebrew/var/mysql/error.log || echo "⚠️ Log not found"
+    tail -n 100 "$BREW_PREFIX/var/mysql/error.log" || echo "⚠️ Log not found"
     exit 1
 fi
 
