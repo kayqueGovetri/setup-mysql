@@ -9,13 +9,12 @@
 ## Overview
 
 This GitHub Action automates the setup and configuration of MySQL in your CI workflow, simplifying database initialization and integration tests. It is designed to be easy to use and customizable for your project needs.
-
 ## Features
 
 - Installs MySQL server in your CI environment
 - Configures user, password, database, and port
 - Runs initialization SQL scripts
-- Works on Linux and Windows runners
+- Works on Linux, Windows, and macOS runners
 - Simple and quick integration into GitHub Actions workflows
 
 ## Usage
