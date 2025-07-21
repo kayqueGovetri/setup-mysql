@@ -1,7 +1,9 @@
 
 # Setup MySQL Action
 
-[![GitHub Actions Status](https://github.com/kayqueGovetri/setup-mysql/workflows/CI/badge.svg)](https://github.com/kayqueGovetri/setup-mysql/actions)
+[![Test Linux](https://github.com/kayqueGovetri/setup-mysql/actions/workflows/test-linux.yml/badge.svg?branch=main)](https://github.com/kayqueGovetri/setup-mysql/actions/workflows/test-linux.yml)
+[![Test macOS](https://github.com/kayqueGovetri/setup-mysql/actions/workflows/test-macos.yml/badge.svg?branch=main)](https://github.com/kayqueGovetri/setup-mysql/actions/workflows/test-macos.yml)
+[![Test Windows](https://github.com/kayqueGovetri/setup-mysql/actions/workflows/test-windows.yml/badge.svg?branch=main)](https://github.com/kayqueGovetri/setup-mysql/actions/workflows/test-windows.yml)
 [![License](https://img.shields.io/github/license/kayqueGovetri/setup-mysql)](LICENSE)
 
 ## Overview
