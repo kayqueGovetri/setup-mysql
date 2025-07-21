@@ -18,51 +18,43 @@ if (-not $userPassword) { $userPassword = "test" }
 Write-Host "### Installing MySQL via Chocolatey"
 choco install mysql -y
 
-Write-Host "### Starting MySQL service"
-Start-Service MySQL
-Start-Sleep -Seconds 15
+Write-Host "### Stopping MySQL service (if running)"
+Try {
+    Stop-Service MySQL -ErrorAction SilentlyContinue
+} catch {}
 
-$myIniPath = 'C:\tools\mysql\current\my.ini'
+Write-Host "### Starting mysqld in safe mode (skip-grant-tables)"
+Start-Process -FilePath "C:\tools\mysql\current\bin\mysqld.exe" -ArgumentList "--skip-grant-tables --skip-networking=0 --port=$port" -NoNewWindow
 
-if (Test-Path $myIniPath) {
-    Write-Host "### Configuring my.ini to use port $port"
-    $content = Get-Content $myIniPath
-
-    if ($content -match 'port=') {
-        $newContent = $content -replace 'port=\d+', "port=$port"
-    }
-    else {
-        $newContent = $content -replace '\[mysqld\]', "[mysqld]`nport=$port"
-    }
-
-    $newContent | Set-Content $myIniPath
-} else {
-    Write-Error "my.ini not found at $myIniPath"
-    exit 1
-}
-
-Write-Host "### Restarting MySQL service"
-Restart-Service MySQL
 Start-Sleep -Seconds 10
 
-Write-Host "### Setting root password"
-& "C:\tools\mysql\current\bin\mysqladmin.exe" -u root -P $port password $rootPassword
+Write-Host "### Running SQL commands to reset root password, create DB and user"
 
-Write-Host "### Forcing native password plugin for root"
-$sqlFixRoot = @"
+$sql = @"
 ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
+FLUSH PRIVILEGES;
+CREATE DATABASE IF NOT EXISTS \`$dbName\`;
+CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
+GRANT ALL PRIVILEGES ON \`$dbName\`.* TO '$user'@'%';
 FLUSH PRIVILEGES;
 "@
 
-& "C:\tools\mysql\current\bin\mysql.exe" -u root -h 127.0.0.1 --protocol=tcp -P $port -p$rootPassword -e $sqlFixRoot
+& "C:\tools\mysql\current\bin\mysql.exe" -u root -h 127.0.0.1 --protocol=tcp -P $port -e $sql
 
-Write-Host "### Waiting for MySQL to be reachable on port $port..."
-$hostname = "127.0.0.1"
-for ($i = 0; $i -lt 30; $i++) {
+Write-Host "### Stopping mysqld from safe mode"
+Get-Process mysqld | ForEach-Object { $_.Kill() }
+
+Start-Sleep -Seconds 5
+
+Write-Host "### Starting MySQL service normally"
+Start-Service MySQL
+
+Write-Host "### Checking MySQL connection"
+for ($i=0; $i -lt 30; $i++) {
     try {
-        $conn = New-Object System.Net.Sockets.TcpClient($hostname, $port)
+        $conn = New-Object System.Net.Sockets.TcpClient("127.0.0.1", $port)
         if ($conn.Connected) {
-            Write-Host "✅ MySQL is reachable on ${hostname}:${port}"
+            Write-Host "✅ MySQL is available at 127.0.0.1:$port"
             $conn.Close()
             break
         }
@@ -70,19 +62,9 @@ for ($i = 0; $i -lt 30; $i++) {
         Start-Sleep -Seconds 2
     }
     if ($i -eq 29) {
-        Write-Host "❌ Timeout waiting for MySQL on ${hostname}:${port}"
+        Write-Error "❌ Timeout while waiting for MySQL at 127.0.0.1:$port"
         exit 1
     }
 }
 
-Write-Host "### Creating database '$dbName' and user '$user'"
-$sqlCreate = @"
-CREATE DATABASE IF NOT EXISTS `$dbName`;
-CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
-GRANT ALL PRIVILEGES ON `$dbName`.* TO '$user'@'%';
-FLUSH PRIVILEGES;
-"@
-
-& "C:\tools\mysql\current\bin\mysql.exe" -u root -h 127.0.0.1 --protocol=tcp -P $port -p$rootPassword -e $sqlCreate
-
-Write-Host "✅ MySQL installed, configured, and user/database created successfully!"
+Write-Host "✅ MySQL installed, configured, and ready to use!"
