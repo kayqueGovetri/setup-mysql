@@ -77,7 +77,7 @@ GRANT ALL PRIVILEGES ON `$dbName`.* TO '$user'@'%';
 FLUSH PRIVILEGES;
 "@
 
-& "C:\tools\mysql\current\bin\mysql.exe" -u root -p$rootPassword -e "SELECT VERSION();"
+& "C:\tools\mysql\current\bin\mysql.exe" -u root -P $port -p$rootPassword -e "SELECT VERSION();"
 
 Write-Host "✅ MySQL installed, configured, and user/database created successfully!"
 
