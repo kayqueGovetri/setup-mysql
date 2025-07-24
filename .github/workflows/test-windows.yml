@@ -10,6 +10,8 @@ on:
       - 'entrypoint.ps1'
       - 'action.yml'
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
 
 jobs:
   test-windows:

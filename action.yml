@@ -2,6 +2,10 @@ name: "Setup MySQL Cross-Platform"
 description: "Installs and configures MySQL on macOS, Linux, and Windows"
 author: "Kayque Govetri"
 
+branding:
+  icon: 'database'
+  color: 'gray-dark'
+
 inputs:
   mysql_root_password:
     description: 'Password for the MySQL root user'

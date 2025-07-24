@@ -10,6 +10,8 @@ on:
       - 'entrypoint-linux.sh'
       - 'action.yml'
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
