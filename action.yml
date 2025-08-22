@@ -30,15 +30,15 @@ runs:
     - name: Run macOS script
       if: runner.os == 'macOS'
       shell: bash
-      run: ./entrypoint-macos.sh
+      run: entrypoint-macos.sh
 
     - name: Run Linux script
       if: runner.os == 'Linux'
       shell: bash
-      run: ./entrypoint-linux.sh
+      run: entrypoint-linux.sh
 
     - name: Run Windows script
       if: runner.os == 'Windows'
       shell: pwsh
-      run: ./entrypoint.ps1
+      run: powershell.exe -File entrypoint.ps1
 
