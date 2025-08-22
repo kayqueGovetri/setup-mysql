@@ -13,7 +13,6 @@ This GitHub Action automates the setup and configuration of MySQL in your CI wor
 
 - Installs MySQL server in your CI environment
 - Configures user, password, database, and port
-- Runs initialization SQL scripts
 - Works on Linux, Windows, and macOS runners
 - Simple and quick integration into GitHub Actions workflows
 
@@ -32,13 +31,11 @@ jobs:
       - name: Setup MySQL
         uses: kayqueGovetri/setup-mysql@v1
         with:
-          mysql-version: '8.0'
-          root-password: 'rootpass'
-          database-name: 'my_db'
-          user: 'dev'
-          user-password: 'devpass'
-          port: 3306
-          init-sql: 'scripts/init.sql'
+          mysql_root_password: 'rootpass'
+          mysql_database: 'my_db'
+          mysql_user: 'dev'
+          mysql_user_password: 'devpass'
+          mysql_port: 3306
 ```
 
 ### Inputs
@@ -51,36 +48,6 @@ jobs:
 | `mysql_user_password`| Password for the database user   | `password`| No       |
 | `mysql_port`         | Port for MySQL server            | `3306`    | No       |
 
-## Example
-
-```yaml
-name: CI
-
-on: [push, pull_request]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup MySQL
-        uses: kayqueGovetri/setup-mysql@v1
-        with:
-          mysql-version: '8.0'
-          root-password: 'rootpass'
-          database-name: 'my_db'
-          user: 'dev'
-          user-password: 'devpass'
-          port: 3307
-          init-sql: 'init.sql'
-
-      - name: Run Tests
-        run: |
-          mysql -h 127.0.0.1 -P 3307 -u dev -p'devpass' my_db < tests/test.sql
-```
-
 ## Notes
 
 - Supported operating systems:
@@ -89,7 +56,6 @@ jobs:
   - **Windows** (Windows Server, Windows 10/11 runners)
 
 - MySQL will be installed and configured according to the specified version.
-- Make sure the path to the `init-sql` file is correct and accessible within the Action context.
 - The MySQL service may take a few seconds to become available after installation.
 
 ## License
