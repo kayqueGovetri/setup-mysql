@@ -43,15 +43,13 @@ jobs:
 
 ### Inputs
 
-| Name           | Description                                | Default  | Required |
-| -------------- | ------------------------------------------| -------- | -------- |
-| `mysql-version`| MySQL version to install (e.g., 8.0)      | `8.0`    | No       |
-| `root-password`| Password for MySQL root user                | `root`   | Yes      |
-| `database-name`| Name of the database to create              | `test`   | No       |
-| `user`         | Database user to create                      | `user`   | No       |
-| `user-password`| Password for the database user               | `password`| No      |
-| `port`         | Port for MySQL server                        | `3306`   | No       |
-| `init-sql`     | Path to the SQL initialization script       | -        | No       |
+| Name                 | Description                      |  Default  | Required |
+| -------------------- | ---------------------------------| --------  | -------- |
+| `mysql_root_password`| Password for MySQL root user     | `root`    | Yes      |
+| `mysql_database`     | Name of the database to create   | `test`    | No       |
+| `mysql_user`         | Database user to create          | `user`    | No       |
+| `mysql_user_password`| Password for the database user   | `password`| No       |
+| `mysql_port`         | Port for MySQL server            | `3306`    | No       |
 
 ## Example
 
