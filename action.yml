@@ -28,10 +28,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Debug working directory
-      shell: bash
-      run: pwd && ls -la
-
     - name: Make macOS script executable
       if: runner.os == 'macOS'
       shell: bash
