@@ -24,21 +24,35 @@ inputs:
   mysql_password:
     description: 'Password for the created user'
     required: false
+
 runs:
   using: "composite"
   steps:
+    - name: Debug working directory
+      shell: bash
+      run: pwd && ls -la
+
+    - name: Make macOS script executable
+      if: runner.os == 'macOS'
+      shell: bash
+      run: chmod +x "${GITHUB_ACTION_PATH}/entrypoint-macos.sh"
+
     - name: Run macOS script
       if: runner.os == 'macOS'
       shell: bash
-      run: ./entrypoint-macos.sh
+      run: "${GITHUB_ACTION_PATH}/entrypoint-macos.sh"
+
+    - name: Make Linux script executable
+      if: runner.os == 'Linux'
+      shell: bash
+      run: chmod +x "${GITHUB_ACTION_PATH}/entrypoint-linux.sh"
 
     - name: Run Linux script
       if: runner.os == 'Linux'
       shell: bash
-      run: ./entrypoint-linux.sh
+      run: "${GITHUB_ACTION_PATH}/entrypoint-linux.sh"
 
     - name: Run Windows script
       if: runner.os == 'Windows'
       shell: pwsh
-      run: ./entrypoint.ps1
-
+      run: "& '${env:GITHUB_ACTION_PATH}\\entrypoint.ps1'"
