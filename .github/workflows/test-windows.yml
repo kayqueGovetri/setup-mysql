@@ -3,15 +3,15 @@ name: Test MySQL on Windows
 on:
   push:
     paths:
-      - 'entrypoint.ps1'
-      - 'action.yml'
+      - "entrypoint.ps1"
+      - "action.yml"
   pull_request:
     paths:
-      - 'entrypoint.ps1'
-      - 'action.yml'
+      - "entrypoint.ps1"
+      - "action.yml"
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *"
 
 jobs:
   test-windows:
@@ -27,3 +27,11 @@ jobs:
           mysql_database: my_db
           mysql_user: my_user
           mysql_password: my_pass
+      - name: Verify Admin Socket Connection
+        run: mysql -h 127.0.0.1 -P ${{github.env.mysql_port}} -u root -p ${{github.env.mysql_root_password}} -e "SELECT VERSION();"
+      - name: Verify Admin TCP Connection
+        run: mysql -h 127.0.0.1 -P ${{github.env.mysql_port}} -u root -p ${{github.env.mysql_root_password}} -e "SELECT VERSION();" --protocol=TCP
+      - name: Verify User Socket Connection
+        run: mysql -h 127.0.0.1 -P ${{github.env.mysql_port}} -u ${{github.env.my_user}} -p ${{github.env.mysql_password}} -e "SELECT VERSION();"
+      - name: Verify User TCP Connection
+        run: mysql -h 127.0.0.1 -P ${{github.env.mysql_port}} -u ${{github.env.my_user}} -p ${{github.env.mysql_password}} -e "SELECT VERSION();" --protocol=TCP
