@@ -111,13 +111,14 @@ if ($timeout -le 0) {
 # STEP 3: CREATE CI ADMIN (NÃO DEPENDE DE ROOT STATE STABILITY)
 # --------------------------------
 & $mysql `
-    -h 127.0.0.1 `
-    -P $port `
-    --protocol=TCP `
-    -u root `
-    -e "
-CREATE USER IF NOT EXISTS 'ci_admin'@'%' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
-GRANT ALL PRIVILEGES ON *.* TO 'ci_admin'@'%' WITH GRANT OPTION;
+  -h 127.0.0.1 `
+  -P $port `
+  -u root `
+  -e "
+CREATE USER IF NOT EXISTS 'ci_admin'@'localhost' IDENTIFIED BY '$rootPassword';
+CREATE USER IF NOT EXISTS 'ci_admin'@'127.0.0.1' IDENTIFIED BY '$rootPassword';
+GRANT ALL PRIVILEGES ON *.* TO 'ci_admin'@'localhost' WITH GRANT OPTION;
+GRANT ALL PRIVILEGES ON *.* TO 'ci_admin'@'127.0.0.1' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 "
 
