@@ -172,6 +172,3 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "✅ MySQL configured successfully"
-
-# Keep process alive in GitHub Actions
-Wait-Process -Id $mysqlProcess.Id
