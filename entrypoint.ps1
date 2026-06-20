@@ -108,11 +108,15 @@ if ($timeout -le 0) {
 # (root starts without password)
 # --------------------------------
 & $mysql `
-    -h 127.0.0.1 `
-    -P $port `
-    --protocol=TCP `
-    -u root `
-    -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$rootPassword'; FLUSH PRIVILEGES;"
+  -h 127.0.0.1 `
+  -P $port `
+  --protocol=TCP `
+  -u root `
+  -e "
+    CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
+    GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+    FLUSH PRIVILEGES;
+    "
 
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to set root password"
