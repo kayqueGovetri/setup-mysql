@@ -113,9 +113,10 @@ if ($timeout -le 0) {
     --protocol=TCP `
     -u root `
     -e "
-    CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
-    ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
-    GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+    CREATE USER IF NOT EXISTS 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
+    CREATE USER IF NOT EXISTS 'root'@'127.0.0.1' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
+    GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION;
+    GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' WITH GRANT OPTION;
     FLUSH PRIVILEGES;
     "
 
