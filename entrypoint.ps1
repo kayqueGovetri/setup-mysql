@@ -1,6 +1,7 @@
 # --------------------------------
 # Input parameters from environment
 # --------------------------------
+
 $rootPassword = $env:mysql_root_password
 $port = $env:mysql_port
 $dbName = $env:mysql_database
@@ -8,8 +9,9 @@ $user = $env:mysql_user
 $userPassword = $env:mysql_password
 
 # --------------------------------
-# Fallbacks for optional inputs
+# Fallbacks
 # --------------------------------
+
 if (-not $rootPassword) { $rootPassword = "root" }
 if (-not $port) { $port = 32768 }
 if (-not $dbName) { $dbName = "my_db" }
@@ -17,66 +19,112 @@ if (-not $user) { $user = "dev" }
 if (-not $userPassword) { $userPassword = "devpass" }
 
 # --------------------------------
-# Static configuration
+# MySQL paths
 # --------------------------------
-$mysqlVersion = "mysql"
-$serviceName = "mysql-ci"
-$installLocation = "C:\tools\mysql"
-$dataLocation = "$installLocation\data"
-$initSqlPath = "$installLocation\init.sql"
+
+$mysqlHome = "C:\Program Files\MySQL\MySQL Server 8.0\bin"
+$mysqld = Join-Path $mysqlHome "mysqld.exe"
+$mysql = Join-Path $mysqlHome "mysql.exe"
+
+$dataDir = "C:\mysql-data"
 
 # --------------------------------
-# Install Chocolatey if needed
+# Initialize data directory
 # --------------------------------
-if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-    Set-ExecutionPolicy Bypass -Scope Process -Force
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
-    Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-}
+
+New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
+
+& $mysqld `
+    --initialize-insecure `
+    --datadir=$dataDir
 
 # --------------------------------
-# Install MySQL
+# Start MySQL
 # --------------------------------
-choco install $mysqlVersion `
-    --params "/installLocation:$installLocation /dataLocation:$dataLocation /port:$port /serviceName:$serviceName" `
-    -y
+
+$mysqlProcess = Start-Process `
+    -FilePath $mysqld `
+    -ArgumentList @(
+        "--datadir=$dataDir",
+        "--port=$port",
+        "--bind-address=0.0.0.0"
+    ) `
+    -PassThru
 
 # --------------------------------
-# Wait for MySQL service to be available
+# Wait for startup
 # --------------------------------
-Start-Sleep -Seconds 10
+
+Start-Sleep -Seconds 20
 
 # --------------------------------
-# Create initialization SQL
+# Configure root user
 # --------------------------------
-@"
-ALTER USER 'root'@'localhost' IDENTIFIED BY '$rootPassword';
-CREATE DATABASE IF NOT EXISTS `$dbName`;
-CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
-GRANT ALL PRIVILEGES ON `$dbName`.* TO '$user'@'%';
-FLUSH PRIVILEGES;
-"@ | Out-File -Encoding ASCII -FilePath $initSqlPath
 
-
-# --------------------------------
-# Locate mysql.exe
-# --------------------------------
-$mysqlExe = Get-ChildItem -Path "$installLocation" -Recurse -Filter "mysql.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-
-if (-not $mysqlExe) {
-    Write-Error "❌ mysql.exe not found under $installLocation"
-    exit 1
-}
+& $mysql `
+    --protocol=TCP `
+    -h 127.0.0.1 `
+    -P $port `
+    -u root `
+    -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$rootPassword';"
 
 # --------------------------------
-# Execute SQL file (no password yet)
+# Create remote root access
 # --------------------------------
-Start-Sleep -Seconds 10
-& $mysqlExe.FullName --protocol=TCP -u root -P $port --execute="source $initSqlPath"
+
+& $mysql `
+    --protocol=TCP `
+    -h 127.0.0.1 `
+    -P $port `
+    -u root `
+    -p$rootPassword `
+    -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '$rootPassword';"
+
+& $mysql `
+    --protocol=TCP `
+    -h 127.0.0.1 `
+    -P $port `
+    -u root `
+    -p$rootPassword `
+    -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
 
 # --------------------------------
-# Cleanup
+# Create application database/user
 # --------------------------------
-Remove-Item $initSqlPath -Force -ErrorAction SilentlyContinue
 
-Write-Host "`n✅ MySQL installed and configured on port $port!"
+& $mysql `
+    --protocol=TCP `
+    -h 127.0.0.1 `
+    -P $port `
+    -u root `
+    -p$rootPassword `
+    -e "CREATE DATABASE IF NOT EXISTS \`$dbName;"
+
+& $mysql `
+    --protocol=TCP `
+    -h 127.0.0.1 `
+    -P $port `
+    -u root `
+    -p$rootPassword `
+    -e "CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';"
+
+& $mysql `
+    --protocol=TCP `
+    -h 127.0.0.1 `
+    -P $port `
+    -u root `
+    -p$rootPassword `
+    -e "GRANT ALL PRIVILEGES ON \`$dbName\`.* TO '$user'@'%';"
+
+& $mysql `
+    --protocol=TCP `
+    -h 127.0.0.1 `
+    -P $port `
+    -u root `
+    -p$rootPassword `
+    -e "FLUSH PRIVILEGES;"
+
+Write-Host "✅ MySQL configured successfully"
+
+# Mantém o processo vivo para o GitHub Action
+Wait-Process -Id $mysqlProcess.Id
