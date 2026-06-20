@@ -125,6 +125,3 @@ Start-Sleep -Seconds 20
     -e "FLUSH PRIVILEGES;"
 
 Write-Host "✅ MySQL configured successfully"
-
-# Mantém o processo vivo para o GitHub Action
-Wait-Process -Id $mysqlProcess.Id
