@@ -63,13 +63,10 @@ $mysqlProcess = Start-Process `
 $timeout = 40
 
 while ($timeout -gt 0) {
-    & $mysql `
-        -h 127.0.0.1 `
-        -P $port `
-        --protocol=TCP `
-        -e "SELECT 1;" 2>$null
 
-    if ($LASTEXITCODE -eq 0) {
+    $tcp = Test-NetConnection 127.0.0.1 -Port $port -WarningAction SilentlyContinue
+
+    if ($tcp.TcpTestSucceeded) {
         break
     }
 
@@ -78,7 +75,7 @@ while ($timeout -gt 0) {
 }
 
 if ($timeout -le 0) {
-    throw "MySQL failed to start in time"
+    throw "MySQL port never opened"
 }
 
 # --------------------------------
