@@ -1,194 +1,104 @@
-# --------------------------------
-# Safety
-# --------------------------------
-$ErrorActionPreference = "Stop"
+New-Item -ItemType Directory -Force -Path C:\mysql-data
+
+& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe" `
+  --initialize-insecure `
+  --datadir=C:\mysql-data
+
+Start-Process `
+  -FilePath "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe" `
+  -ArgumentList `
+  "--datadir=C:\mysql-data",
+  "--port=32768",
+  "--bind-address=0.0.0.0"
+
+Start-Sleep 20
+
+$mysql = "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"
 
 # --------------------------------
-# Inputs
+# ROOT SETUP (mantido igual)
 # --------------------------------
-$rootPassword  = $env:mysql_root_password
-$port          = $env:mysql_port
-$dbName        = $env:mysql_database
-$user          = $env:mysql_user
-$userPassword  = $env:mysql_password
+& $mysql `
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';"
 
-if (-not $rootPassword) { $rootPassword = "root" }
-if (-not $port) { $port = 32768 }
-if (-not $dbName) { $dbName = "my_db" }
+& $mysql `
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -proot `
+  -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY 'root';"
+
+& $mysql `
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -proot `
+  -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
+
+& $mysql `
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -proot `
+  -e "FLUSH PRIVILEGES;"
+
+# --------------------------------
+# DATABASE
+# --------------------------------
+& $mysql `
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -proot `
+  -e "CREATE DATABASE IF NOT EXISTS my_db;"
+
+# --------------------------------
+# USER DINÂMICO (NOVO)
+# --------------------------------
+
+$user = $env:mysql_user
+$userPassword = $env:mysql_password
+
 if (-not $user) { $user = "dev" }
 if (-not $userPassword) { $userPassword = "devpass" }
 
-# --------------------------------
-# Paths
-# --------------------------------
-$mysqlHome = "C:\Program Files\MySQL\MySQL Server 8.0\bin"
-$mysqld = Join-Path $mysqlHome "mysqld.exe"
-$mysql  = Join-Path $mysqlHome "mysql.exe"
-
-# --------------------------------
-# Data dir
-# --------------------------------
-$dataDir = "C:\mysql-data"
-
-if (Test-Path $dataDir) {
-    Remove-Item $dataDir -Recurse -Force
-}
-
-New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
-
-# --------------------------------
-# INIT DB
-# --------------------------------
-& $mysqld --initialize-insecure --datadir=$dataDir
-
-if ($LASTEXITCODE -ne 0) {
-    throw "MySQL initialization failed"
-}
-
-# --------------------------------
-# START MYSQL
-# --------------------------------
-$mysqlProcess = Start-Process `
-    -FilePath $mysqld `
-    -ArgumentList @(
-        "--datadir=$dataDir",
-        "--port=$port",
-        "--bind-address=0.0.0.0",
-        "--console"
-    ) `
-    -PassThru
-
-# --------------------------------
-# STEP 1: WAIT PORT ONLY
-# --------------------------------
-$timeout = 60
-
-while ($timeout -gt 0) {
-    $tcp = Test-NetConnection 127.0.0.1 -Port $port -WarningAction SilentlyContinue
-
-    if ($tcp.TcpTestSucceeded) {
-        break
-    }
-
-    Start-Sleep 1
-    $timeout--
-}
-
-if ($timeout -le 0) {
-    throw "MySQL port never opened"
-}
-
-# --------------------------------
-# STEP 2: WAIT SQL ENGINE (NO RELIANCE ON LOG OR ROOT STATE)
-# --------------------------------
-$timeout = 60
-
-while ($timeout -gt 0) {
-
-    try {
-        & $mysql `
-            -h 127.0.0.1 `
-            -P $port `
-            --protocol=TCP `
-            -u root `
-            -e "SELECT 1;" 2>$null
-
-        if ($LASTEXITCODE -eq 0) {
-            break
-        }
-    }
-    catch {}
-
-    Start-Sleep 1
-    $timeout--
-}
-
-if ($timeout -le 0) {
-    throw "MySQL not ready (SQL engine not responsive)"
-}
-
-# --------------------------------
-# STEP 3: CREATE CI ADMIN (NÃO DEPENDE DE ROOT STATE STABILITY)
-# --------------------------------
 & $mysql `
+  --protocol=TCP `
   -h 127.0.0.1 `
-  -P $port `
+  -P 32768 `
   -u root `
+  -proot `
   -e "
-CREATE USER IF NOT EXISTS 'ci_admin'@'localhost' IDENTIFIED BY '$rootPassword';
-CREATE USER IF NOT EXISTS 'ci_admin'@'127.0.0.1' IDENTIFIED BY '$rootPassword';
-GRANT ALL PRIVILEGES ON *.* TO 'ci_admin'@'localhost' WITH GRANT OPTION;
-GRANT ALL PRIVILEGES ON *.* TO 'ci_admin'@'127.0.0.1' WITH GRANT OPTION;
-FLUSH PRIVILEGES;
-"
-
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to create CI admin user"
-}
-
-# --------------------------------
-# STEP 4: SWITCH TO CI ADMIN (FROM HERE ROOT IS NOT USED ANYMORE)
-# --------------------------------
-$mysqlUser = "ci_admin"
-
-# --------------------------------
-# STEP 5: VERIFY AUTH
-# --------------------------------
-& $mysql `
-    -h 127.0.0.1 `
-    -P $port `
-    --protocol=TCP `
-    -u $mysqlUser `
-    -p$rootPassword `
-    -e "SELECT 1;"
-
-if ($LASTEXITCODE -ne 0) {
-    throw "CI admin authentication failed"
-}
-
-# --------------------------------
-# STEP 6: CREATE DATABASE
-# --------------------------------
-& $mysql `
-    -h 127.0.0.1 `
-    -P $port `
-    --protocol=TCP `
-    -u $mysqlUser `
-    -p$rootPassword `
-    -e "CREATE DATABASE IF NOT EXISTS $dbName;"
-
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to create database"
-}
-
-# --------------------------------
-# STEP 7: CREATE APP USER
-# --------------------------------
-& $mysql `
-    -h 127.0.0.1 `
-    -P $port `
-    --protocol=TCP `
-    -u $mysqlUser `
-    -p$rootPassword `
-    -e "
-CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
-GRANT ALL PRIVILEGES ON $dbName.* TO '$user'@'%';
+CREATE USER IF NOT EXISTS '$user'@'localhost' IDENTIFIED BY '$userPassword';
+CREATE USER IF NOT EXISTS '$user'@'127.0.0.1' IDENTIFIED BY '$userPassword';
+GRANT ALL PRIVILEGES ON my_db.* TO '$user'@'localhost';
+GRANT ALL PRIVILEGES ON my_db.* TO '$user'@'127.0.0.1';
 FLUSH PRIVILEGES;
 "
 
 # --------------------------------
-# STEP 8: FINAL VALIDATION
+# VERIFY
 # --------------------------------
 & $mysql `
-    -h 127.0.0.1 `
-    -P $port `
-    --protocol=TCP `
-    -u $mysqlUser `
-    -p$rootPassword `
-    -e "SELECT VERSION();"
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -proot `
+  -e "SHOW DATABASES;"
 
-if ($LASTEXITCODE -ne 0) {
-    throw "Final validation failed"
-}
-
-Write-Host "✅ MySQL configured successfully"
+& $mysql `
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -proot `
+  -e "SELECT VERSION;"
