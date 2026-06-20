@@ -1,82 +1,104 @@
+New-Item -ItemType Directory -Force -Path C:\mysql-data
+
+& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe" `
+  --initialize-insecure `
+  --datadir=C:\mysql-data
+
+Start-Process `
+  -FilePath "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe" `
+  -ArgumentList `
+  "--datadir=C:\mysql-data",
+  "--port=32768",
+  "--bind-address=0.0.0.0"
+
+Start-Sleep 20
+
+$mysql = "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"
+
 # --------------------------------
-# Input parameters from environment
+# ROOT SETUP (mantido igual)
 # --------------------------------
-$rootPassword = $env:mysql_root_password
-$port = $env:mysql_port
-$dbName = $env:mysql_database
+& $mysql `
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';"
+
+& $mysql `
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -proot `
+  -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY 'root';"
+
+& $mysql `
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -proot `
+  -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
+
+& $mysql `
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -proot `
+  -e "FLUSH PRIVILEGES;"
+
+# --------------------------------
+# DATABASE
+# --------------------------------
+& $mysql `
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -proot `
+  -e "CREATE DATABASE IF NOT EXISTS my_db;"
+
+# --------------------------------
+# USER DINÂMICO (NOVO)
+# --------------------------------
+
 $user = $env:mysql_user
 $userPassword = $env:mysql_password
 
-# --------------------------------
-# Fallbacks for optional inputs
-# --------------------------------
-if (-not $rootPassword) { $rootPassword = "root" }
-if (-not $port) { $port = 32768 }
-if (-not $dbName) { $dbName = "my_db" }
 if (-not $user) { $user = "dev" }
 if (-not $userPassword) { $userPassword = "devpass" }
 
-# --------------------------------
-# Static configuration
-# --------------------------------
-$mysqlVersion = "mysql"
-$serviceName = "mysql-ci"
-$installLocation = "C:\tools\mysql"
-$dataLocation = "$installLocation\data"
-$initSqlPath = "$installLocation\init.sql"
-
-# --------------------------------
-# Install Chocolatey if needed
-# --------------------------------
-if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-    Set-ExecutionPolicy Bypass -Scope Process -Force
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
-    Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-}
-
-# --------------------------------
-# Install MySQL
-# --------------------------------
-choco install $mysqlVersion `
-    --params "/installLocation:$installLocation /dataLocation:$dataLocation /port:$port /serviceName:$serviceName" `
-    -y
-
-# --------------------------------
-# Wait for MySQL service to be available
-# --------------------------------
-Start-Sleep -Seconds 10
-
-# --------------------------------
-# Create initialization SQL
-# --------------------------------
-@"
-ALTER USER 'root'@'localhost' IDENTIFIED BY '$rootPassword';
-CREATE DATABASE IF NOT EXISTS `$dbName`;
-CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
-GRANT ALL PRIVILEGES ON `$dbName`.* TO '$user'@'%';
+& $mysql `
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -proot `
+  -e "
+CREATE USER IF NOT EXISTS '$user'@'localhost' IDENTIFIED BY '$userPassword';
+CREATE USER IF NOT EXISTS '$user'@'127.0.0.1' IDENTIFIED BY '$userPassword';
+GRANT ALL PRIVILEGES ON my_db.* TO '$user'@'localhost';
+GRANT ALL PRIVILEGES ON my_db.* TO '$user'@'127.0.0.1';
 FLUSH PRIVILEGES;
-"@ | Out-File -Encoding ASCII -FilePath $initSqlPath
-
-
-# --------------------------------
-# Locate mysql.exe
-# --------------------------------
-$mysqlExe = Get-ChildItem -Path "$installLocation" -Recurse -Filter "mysql.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-
-if (-not $mysqlExe) {
-    Write-Error "❌ mysql.exe not found under $installLocation"
-    exit 1
-}
+"
 
 # --------------------------------
-# Execute SQL file (no password yet)
+# VERIFY
 # --------------------------------
-Start-Sleep -Seconds 10
-& $mysqlExe.FullName --protocol=TCP -u root -P $port --execute="source $initSqlPath"
+& $mysql `
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -proot `
+  -e "SHOW DATABASES;"
 
-# --------------------------------
-# Cleanup
-# --------------------------------
-Remove-Item $initSqlPath -Force -ErrorAction SilentlyContinue
-
-Write-Host "`n✅ MySQL installed and configured on port $port!"
+& $mysql `
+  --protocol=TCP `
+  -h 127.0.0.1 `
+  -P 32768 `
+  -u root `
+  -proot `
+  -e "SELECT VERSION();"
