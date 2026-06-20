@@ -108,12 +108,13 @@ if ($timeout -le 0) {
 # (root starts without password)
 # --------------------------------
 & $mysql `
-  -h 127.0.0.1 `
-  -P $port `
-  --protocol=TCP `
-  -u root `
-  -e "
+    -h 127.0.0.1 `
+    -P $port `
+    --protocol=TCP `
+    -u root `
+    -e "
     CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
+    ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
     GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
     FLUSH PRIVILEGES;
     "
