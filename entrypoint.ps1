@@ -101,4 +101,4 @@ FLUSH PRIVILEGES;
   -P 32768 `
   -u root `
   -proot `
-  -e "SELECT VERSION;"
+  -e "SELECT VERSION();"
