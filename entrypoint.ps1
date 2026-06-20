@@ -48,23 +48,20 @@ if ($LASTEXITCODE -ne 0) {
 # --------------------------------
 # START MYSQL
 # --------------------------------
-$logFile = Join-Path $dataDir "mysql.err"
-
 $mysqlProcess = Start-Process `
     -FilePath $mysqld `
     -ArgumentList @(
         "--datadir=$dataDir",
         "--port=$port",
         "--bind-address=0.0.0.0",
-        "--console",
-        "--log-error=$logFile"
+        "--console"
     ) `
     -PassThru
 
 # --------------------------------
-# STEP 1: WAIT PORT ONLY (safe)
+# STEP 1: WAIT PORT ONLY
 # --------------------------------
-$timeout = 40
+$timeout = 60
 
 while ($timeout -gt 0) {
     $tcp = Test-NetConnection 127.0.0.1 -Port $port -WarningAction SilentlyContinue
@@ -82,21 +79,21 @@ if ($timeout -le 0) {
 }
 
 # --------------------------------
-# STEP 2: WAIT MYSQL READY VIA LOG
+# STEP 2: WAIT SQL ENGINE (NO RELIANCE ON LOG OR ROOT STATE)
 # --------------------------------
 $timeout = 60
 
 while ($timeout -gt 0) {
 
     try {
-        $result = & $mysql `
+        & $mysql `
             -h 127.0.0.1 `
             -P $port `
             --protocol=TCP `
             -u root `
             -e "SELECT 1;" 2>$null
 
-        if ($LASTEXITCODE -eq 0 -and $result) {
+        if ($LASTEXITCODE -eq 0) {
             break
         }
     }
@@ -107,49 +104,55 @@ while ($timeout -gt 0) {
 }
 
 if ($timeout -le 0) {
-    throw "MySQL not ready (SQL readiness check failed)"
+    throw "MySQL not ready (SQL engine not responsive)"
 }
+
 # --------------------------------
-# STEP 3: BOOTSTRAP ROOT (NO AMBIGUITY)
+# STEP 3: CREATE CI ADMIN (NÃO DEPENDE DE ROOT STATE STABILITY)
 # --------------------------------
 & $mysql `
-  -h 127.0.0.1 `
-  -P $port `
-  --protocol=TCP `
-  -u root `
-  -e "
-ALTER USER 'root'@'localhost'
-IDENTIFIED WITH mysql_native_password BY '$rootPassword';
+    -h 127.0.0.1 `
+    -P $port `
+    --protocol=TCP `
+    -u root `
+    -e "
+CREATE USER IF NOT EXISTS 'ci_admin'@'%' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
+GRANT ALL PRIVILEGES ON *.* TO 'ci_admin'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 "
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Failed to bootstrap root user"
+    throw "Failed to create CI admin user"
 }
 
 # --------------------------------
-# STEP 4: VERIFY AUTH
+# STEP 4: SWITCH TO CI ADMIN (FROM HERE ROOT IS NOT USED ANYMORE)
+# --------------------------------
+$mysqlUser = "ci_admin"
+
+# --------------------------------
+# STEP 5: VERIFY AUTH
 # --------------------------------
 & $mysql `
     -h 127.0.0.1 `
     -P $port `
     --protocol=TCP `
-    -u root `
+    -u $mysqlUser `
     -p$rootPassword `
     -e "SELECT 1;"
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Root authentication failed after bootstrap"
+    throw "CI admin authentication failed"
 }
 
 # --------------------------------
-# STEP 5: CREATE DATABASE
+# STEP 6: CREATE DATABASE
 # --------------------------------
 & $mysql `
     -h 127.0.0.1 `
     -P $port `
     --protocol=TCP `
-    -u root `
+    -u $mysqlUser `
     -p$rootPassword `
     -e "CREATE DATABASE IF NOT EXISTS $dbName;"
 
@@ -158,13 +161,13 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # --------------------------------
-# STEP 6: CREATE USER
+# STEP 7: CREATE APP USER
 # --------------------------------
 & $mysql `
     -h 127.0.0.1 `
     -P $port `
     --protocol=TCP `
-    -u root `
+    -u $mysqlUser `
     -p$rootPassword `
     -e "
 CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
@@ -173,13 +176,13 @@ FLUSH PRIVILEGES;
 "
 
 # --------------------------------
-# STEP 7: FINAL VALIDATION
+# STEP 8: FINAL VALIDATION
 # --------------------------------
 & $mysql `
     -h 127.0.0.1 `
     -P $port `
     --protocol=TCP `
-    -u root `
+    -u $mysqlUser `
     -p$rootPassword `
     -e "SELECT VERSION();"
 
