@@ -135,7 +135,6 @@ if ($LASTEXITCODE -ne 0) {
     -P $port `
     --protocol=TCP `
     -u root `
-    -p$rootPassword `
     -e "SELECT 1;"
 
 if ($LASTEXITCODE -ne 0) {
@@ -150,7 +149,6 @@ if ($LASTEXITCODE -ne 0) {
     -P $port `
     --protocol=TCP `
     -u root `
-    -p$rootPassword `
     -e "CREATE DATABASE IF NOT EXISTS $dbName;"
 
 if ($LASTEXITCODE -ne 0) {
@@ -165,7 +163,6 @@ if ($LASTEXITCODE -ne 0) {
     -P $port `
     --protocol=TCP `
     -u root `
-    -p$rootPassword `
     -e "
 CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
 GRANT ALL PRIVILEGES ON $dbName.* TO '$user'@'%';
@@ -180,7 +177,6 @@ FLUSH PRIVILEGES;
     -P $port `
     --protocol=TCP `
     -u root `
-    -p$rootPassword `
     -e "SELECT VERSION();"
 
 if ($LASTEXITCODE -ne 0) {
@@ -188,6 +184,3 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "✅ MySQL configured successfully"
-
-# keep process alive for GitHub Actions
-Wait-Process -Id $mysqlProcess.Id
