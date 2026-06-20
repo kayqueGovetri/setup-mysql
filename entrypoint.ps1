@@ -113,13 +113,13 @@ if ($timeout -le 0) {
 # STEP 3: BOOTSTRAP ROOT (NO AMBIGUITY)
 # --------------------------------
 & $mysql `
-    -h 127.0.0.1 `
-    -P $port `
-    --protocol=TCP `
-    -u root `
-    -e "
-CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+  -h 127.0.0.1 `
+  -P $port `
+  --protocol=TCP `
+  -u root `
+  -e "
+ALTER USER 'root'@'localhost'
+IDENTIFIED WITH mysql_native_password BY '$rootPassword';
 FLUSH PRIVILEGES;
 "
 
@@ -135,6 +135,7 @@ if ($LASTEXITCODE -ne 0) {
     -P $port `
     --protocol=TCP `
     -u root `
+    -p$rootPassword `
     -e "SELECT 1;"
 
 if ($LASTEXITCODE -ne 0) {
@@ -149,6 +150,7 @@ if ($LASTEXITCODE -ne 0) {
     -P $port `
     --protocol=TCP `
     -u root `
+    -p$rootPassword `
     -e "CREATE DATABASE IF NOT EXISTS $dbName;"
 
 if ($LASTEXITCODE -ne 0) {
@@ -163,6 +165,7 @@ if ($LASTEXITCODE -ne 0) {
     -P $port `
     --protocol=TCP `
     -u root `
+    -p$rootPassword `
     -e "
 CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
 GRANT ALL PRIVILEGES ON $dbName.* TO '$user'@'%';
@@ -177,6 +180,7 @@ FLUSH PRIVILEGES;
     -P $port `
     --protocol=TCP `
     -u root `
+    -p$rootPassword `
     -e "SELECT VERSION();"
 
 if ($LASTEXITCODE -ne 0) {
