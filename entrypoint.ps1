@@ -153,25 +153,6 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # --------------------------------
-# STEP 6: CREATE USER
-# --------------------------------
-& $mysql `
-    -h 127.0.0.1 `
-    -P $port `
-    --protocol=TCP `
-    -u root `
-    -p$rootPassword `
-    -e "CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';"
-
-& $mysql `
-    -h 127.0.0.1 `
-    -P $port `
-    --protocol=TCP `
-    -u root `
-    -p$rootPassword `
-    -e "GRANT ALL PRIVILEGES ON $dbName.* TO '$user'@'%'; FLUSH PRIVILEGES;"
-
-# --------------------------------
 # STEP 7: FINAL VALIDATION
 # --------------------------------
 & $mysql `
