@@ -24,7 +24,7 @@ if (-not $userPassword) { $userPassword = "devpass" }
 $mysqlHome = "C:\Program Files\MySQL\MySQL Server 8.0\bin"
 $mysqld = Join-Path $mysqlHome "mysqld.exe"
 $mysql  = Join-Path $mysqlHome "mysql.exe"
-
+$env:MYSQL_PWD = $rootPassword
 # --------------------------------
 # Data dir reset
 # --------------------------------
@@ -113,9 +113,7 @@ if ($timeout -le 0) {
     --protocol=TCP `
     -u root `
     -e "
-    CREATE USER IF NOT EXISTS 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
     CREATE USER IF NOT EXISTS 'root'@'127.0.0.1' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
-    GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION;
     GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' WITH GRANT OPTION;
     FLUSH PRIVILEGES;
     "
@@ -132,7 +130,6 @@ if ($LASTEXITCODE -ne 0) {
     -P $port `
     --protocol=TCP `
     -u root `
-    -p$rootPassword `
     -e "SELECT 1;"
 
 if ($LASTEXITCODE -ne 0) {
@@ -147,7 +144,6 @@ if ($LASTEXITCODE -ne 0) {
     -P $port `
     --protocol=TCP `
     -u root `
-    -p$rootPassword `
     -e "CREATE DATABASE IF NOT EXISTS $dbName;"
 
 if ($LASTEXITCODE -ne 0) {
@@ -162,7 +158,6 @@ if ($LASTEXITCODE -ne 0) {
     -P $port `
     --protocol=TCP `
     -u root `
-    -p$rootPassword `
     -e "SELECT VERSION();"
 
 if ($LASTEXITCODE -ne 0) {
@@ -170,6 +165,3 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "✅ MySQL configured successfully"
-
-# keep alive for GitHub Actions
-Wait-Process -Id $mysqlProcess.Id
