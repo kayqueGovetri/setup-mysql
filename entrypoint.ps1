@@ -24,9 +24,9 @@ if (-not $userPassword) { $userPassword = "devpass" }
 $mysqlHome = "C:\Program Files\MySQL\MySQL Server 8.0\bin"
 $mysqld = Join-Path $mysqlHome "mysqld.exe"
 $mysql  = Join-Path $mysqlHome "mysql.exe"
-$env:MYSQL_PWD = $rootPassword
+
 # --------------------------------
-# Data dir reset
+# Data dir
 # --------------------------------
 $dataDir = "C:\mysql-data"
 
@@ -37,7 +37,7 @@ if (Test-Path $dataDir) {
 New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
 
 # --------------------------------
-# INIT DATABASE (CRITICAL FIX)
+# INIT DB
 # --------------------------------
 & $mysqld --initialize-insecure --datadir=$dataDir
 
@@ -48,18 +48,21 @@ if ($LASTEXITCODE -ne 0) {
 # --------------------------------
 # START MYSQL
 # --------------------------------
+$logFile = Join-Path $dataDir "mysql.err"
+
 $mysqlProcess = Start-Process `
     -FilePath $mysqld `
     -ArgumentList @(
         "--datadir=$dataDir",
         "--port=$port",
         "--bind-address=0.0.0.0",
-        "--console"
+        "--console",
+        "--log-error=$logFile"
     ) `
     -PassThru
 
 # --------------------------------
-# STEP 1: WAIT TCP (server boot only)
+# STEP 1: WAIT PORT ONLY (safe)
 # --------------------------------
 $timeout = 40
 
@@ -79,20 +82,18 @@ if ($timeout -le 0) {
 }
 
 # --------------------------------
-# STEP 2: WAIT MYSQL READY (NO AUTH)
+# STEP 2: WAIT MYSQL READY VIA LOG
 # --------------------------------
 $timeout = 40
 
 while ($timeout -gt 0) {
-    & $mysql `
-        -h 127.0.0.1 `
-        -P $port `
-        --protocol=TCP `
-        -u root `
-        -e "SELECT 1;" 2>$null
 
-    if ($LASTEXITCODE -eq 0) {
-        break
+    if (Test-Path $logFile) {
+        $ready = Select-String -Path $logFile -Pattern "ready for connections" -ErrorAction SilentlyContinue
+
+        if ($ready) {
+            break
+        }
     }
 
     Start-Sleep 1
@@ -100,12 +101,11 @@ while ($timeout -gt 0) {
 }
 
 if ($timeout -le 0) {
-    throw "MySQL not ready for SQL execution"
+    throw "MySQL not ready (log never confirmed readiness)"
 }
 
 # --------------------------------
-# STEP 3: BOOTSTRAP AUTH SAFELY
-# (root starts without password)
+# STEP 3: BOOTSTRAP ROOT (NO AMBIGUITY)
 # --------------------------------
 & $mysql `
     -h 127.0.0.1 `
@@ -113,42 +113,59 @@ if ($timeout -le 0) {
     --protocol=TCP `
     -u root `
     -e "
-    CREATE USER IF NOT EXISTS 'root'@'127.0.0.1' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
-    GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' WITH GRANT OPTION;
-    FLUSH PRIVILEGES;
-    "
+CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED WITH mysql_native_password BY '$rootPassword';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+"
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Failed to set root password"
+    throw "Failed to bootstrap root user"
 }
 
 # --------------------------------
-# STEP 4: VERIFY AUTH SWITCH
+# STEP 4: VERIFY AUTH
 # --------------------------------
 & $mysql `
     -h 127.0.0.1 `
     -P $port `
     --protocol=TCP `
     -u root `
+    -p$rootPassword `
     -e "SELECT 1;"
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Root authentication failed after password setup"
+    throw "Root authentication failed after bootstrap"
 }
 
 # --------------------------------
-# STEP 5: PROVISION DATABASE
+# STEP 5: CREATE DATABASE
 # --------------------------------
 & $mysql `
     -h 127.0.0.1 `
     -P $port `
     --protocol=TCP `
     -u root `
+    -p$rootPassword `
     -e "CREATE DATABASE IF NOT EXISTS $dbName;"
 
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to create database"
 }
+
+# --------------------------------
+# STEP 6: CREATE USER
+# --------------------------------
+& $mysql `
+    -h 127.0.0.1 `
+    -P $port `
+    --protocol=TCP `
+    -u root `
+    -p$rootPassword `
+    -e "
+CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';
+GRANT ALL PRIVILEGES ON $dbName.* TO '$user'@'%';
+FLUSH PRIVILEGES;
+"
 
 # --------------------------------
 # STEP 7: FINAL VALIDATION
@@ -158,6 +175,7 @@ if ($LASTEXITCODE -ne 0) {
     -P $port `
     --protocol=TCP `
     -u root `
+    -p$rootPassword `
     -e "SELECT VERSION();"
 
 if ($LASTEXITCODE -ne 0) {
@@ -165,3 +183,6 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "✅ MySQL configured successfully"
+
+# keep process alive for GitHub Actions
+Wait-Process -Id $mysqlProcess.Id
