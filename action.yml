@@ -36,6 +36,12 @@ runs:
     - name: Run macOS script
       if: runner.os == 'macOS'
       shell: bash
+      env:
+        mysql_root_password: ${{ inputs.mysql_root_password }}
+        mysql_port: ${{ inputs.mysql_port }}
+        mysql_database: ${{ inputs.mysql_database }}
+        mysql_user: ${{ inputs.mysql_user }}
+        mysql_password: ${{ inputs.mysql_password }}
       run: "${GITHUB_ACTION_PATH}/entrypoint-macos.sh"
 
     - name: Make Linux script executable
@@ -46,10 +52,22 @@ runs:
     - name: Run Linux script
       if: runner.os == 'Linux'
       shell: bash
+      env:
+        mysql_root_password: ${{ inputs.mysql_root_password }}
+        mysql_port: ${{ inputs.mysql_port }}
+        mysql_database: ${{ inputs.mysql_database }}
+        mysql_user: ${{ inputs.mysql_user }}
+        mysql_password: ${{ inputs.mysql_password }}
       run: "${GITHUB_ACTION_PATH}/entrypoint-linux.sh"
 
     - name: Run Windows script
       if: runner.os == 'Windows'
       shell: pwsh
+      env:
+        mysql_root_password: ${{ inputs.mysql_root_password }}
+        mysql_port: ${{ inputs.mysql_port }}
+        mysql_database: ${{ inputs.mysql_database }}
+        mysql_user: ${{ inputs.mysql_user }}
+        mysql_password: ${{ inputs.mysql_password }}
       run: '& (Join-Path $env:GITHUB_ACTION_PATH "entrypoint.ps1")'
 

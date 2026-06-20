@@ -55,7 +55,7 @@ $mysqlProcess = Start-Process `
 # Wait for startup
 # --------------------------------
 
-Start-Sleep -Seconds 20
+Start-Sleep -Seconds 10
 
 # --------------------------------
 # Configure root user
