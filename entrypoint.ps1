@@ -84,26 +84,31 @@ if ($timeout -le 0) {
 # --------------------------------
 # STEP 2: WAIT MYSQL READY VIA LOG
 # --------------------------------
-$timeout = 40
+$timeout = 60
 
 while ($timeout -gt 0) {
 
-    if (Test-Path $logFile) {
-        $ready = Select-String -Path $logFile -Pattern "ready for connections" -ErrorAction SilentlyContinue
+    try {
+        $result = & $mysql `
+            -h 127.0.0.1 `
+            -P $port `
+            --protocol=TCP `
+            -u root `
+            -e "SELECT 1;" 2>$null
 
-        if ($ready) {
+        if ($LASTEXITCODE -eq 0 -and $result) {
             break
         }
     }
+    catch {}
 
     Start-Sleep 1
     $timeout--
 }
 
 if ($timeout -le 0) {
-    throw "MySQL not ready (log never confirmed readiness)"
+    throw "MySQL not ready (SQL readiness check failed)"
 }
-
 # --------------------------------
 # STEP 3: BOOTSTRAP ROOT (NO AMBIGUITY)
 # --------------------------------
