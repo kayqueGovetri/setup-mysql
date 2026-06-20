@@ -7,6 +7,7 @@ $port = $env:mysql_port
 $dbName = $env:mysql_database
 $user = $env:mysql_user
 $userPassword = $env:mysql_password
+$env:MYSQL_PWD = $rootPassword
 
 # --------------------------------
 # Fallbacks
@@ -77,7 +78,6 @@ Start-Sleep -Seconds 10
     -h 127.0.0.1 `
     -P $port `
     -u root `
-    -proot `
     -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '$rootPassword';"
 
 & $mysql `
@@ -85,7 +85,6 @@ Start-Sleep -Seconds 10
     -h 127.0.0.1 `
     -P $port `
     -u root `
-    -proot `
     -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
 
 # --------------------------------
@@ -97,7 +96,6 @@ Start-Sleep -Seconds 10
     -h 127.0.0.1 `
     -P $port `
     -u root `
-    -proot `
     -e "CREATE DATABASE IF NOT EXISTS \`$dbName;"
 
 & $mysql `
@@ -105,7 +103,6 @@ Start-Sleep -Seconds 10
     -h 127.0.0.1 `
     -P $port `
     -u root `
-    -proot `
     -e "CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';"
 
 & $mysql `
@@ -113,7 +110,6 @@ Start-Sleep -Seconds 10
     -h 127.0.0.1 `
     -P $port `
     -u root `
-    -proot `
     -e "GRANT ALL PRIVILEGES ON \`$dbName\`.* TO '$user'@'%';"
 
 & $mysql `
@@ -121,7 +117,6 @@ Start-Sleep -Seconds 10
     -h 127.0.0.1 `
     -P $port `
     -u root `
-    -proot `
     -e "FLUSH PRIVILEGES;"
 
 Write-Host "✅ MySQL configured successfully"
