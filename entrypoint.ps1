@@ -1,17 +1,16 @@
 # --------------------------------
+# Safety
+# --------------------------------
+$ErrorActionPreference = "Stop"
+
+# --------------------------------
 # Input parameters from environment
 # --------------------------------
-
-$rootPassword = $env:mysql_root_password
-$port = $env:mysql_port
-$dbName = $env:mysql_database
-$user = $env:mysql_user
-$userPassword = $env:mysql_password
-$env:MYSQL_PWD = $rootPassword
-
-# --------------------------------
-# Fallbacks
-# --------------------------------
+$rootPassword  = $env:mysql_root_password
+$port          = $env:mysql_port
+$dbName        = $env:mysql_database
+$user          = $env:mysql_user
+$userPassword  = $env:mysql_password
 
 if (-not $rootPassword) { $rootPassword = "root" }
 if (-not $port) { $port = 32768 }
@@ -22,27 +21,33 @@ if (-not $userPassword) { $userPassword = "devpass" }
 # --------------------------------
 # MySQL paths
 # --------------------------------
-
 $mysqlHome = "C:\Program Files\MySQL\MySQL Server 8.0\bin"
 $mysqld = Join-Path $mysqlHome "mysqld.exe"
-$mysql = Join-Path $mysqlHome "mysql.exe"
+$mysql  = Join-Path $mysqlHome "mysql.exe"
 
+# --------------------------------
+# Data directory
+# --------------------------------
 $dataDir = "C:\mysql-data"
 
-# --------------------------------
-# Initialize data directory
-# --------------------------------
+if (Test-Path $dataDir) {
+    Remove-Item $dataDir -Recurse -Force
+}
 
 New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
 
-& $mysqld `
-    --initialize-insecure `
-    --datadir=$dataDir
+# --------------------------------
+# Initialize MySQL (CRITICAL)
+# --------------------------------
+& $mysqld --initialize-insecure --datadir=$dataDir
+
+if ($LASTEXITCODE -ne 0) {
+    throw "MySQL initialization failed"
+}
 
 # --------------------------------
-# Start MySQL
+# Start MySQL server
 # --------------------------------
-
 $mysqlProcess = Start-Process `
     -FilePath $mysqld `
     -ArgumentList @(
@@ -53,70 +58,120 @@ $mysqlProcess = Start-Process `
     -PassThru
 
 # --------------------------------
-# Wait for startup
+# Wait for MySQL to be ready (NO AUTH YET)
 # --------------------------------
+$timeout = 40
 
-Start-Sleep -Seconds 10
+while ($timeout -gt 0) {
+    & $mysql `
+        -h 127.0.0.1 `
+        -P $port `
+        --protocol=TCP `
+        -e "SELECT 1;" 2>$null
+
+    if ($LASTEXITCODE -eq 0) {
+        break
+    }
+
+    Start-Sleep 1
+    $timeout--
+}
+
+if ($timeout -le 0) {
+    throw "MySQL failed to start in time"
+}
 
 # --------------------------------
-# Configure root user
+# Set root password
 # --------------------------------
-
 & $mysql `
-    --protocol=TCP `
     -h 127.0.0.1 `
     -P $port `
+    --protocol=TCP `
     -u root `
     -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$rootPassword';"
 
-# --------------------------------
-# Create remote root access
-# --------------------------------
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to set root password"
+}
 
+# --------------------------------
+# Enable remote root
+# --------------------------------
 & $mysql `
-    --protocol=TCP `
     -h 127.0.0.1 `
     -P $port `
+    --protocol=TCP `
     -u root `
+    -p$rootPassword `
     -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '$rootPassword';"
 
 & $mysql `
-    --protocol=TCP `
     -h 127.0.0.1 `
     -P $port `
+    --protocol=TCP `
     -u root `
+    -p$rootPassword `
     -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
 
 # --------------------------------
-# Create application database/user
+# Create database
 # --------------------------------
-
 & $mysql `
-    --protocol=TCP `
     -h 127.0.0.1 `
     -P $port `
-    -u root `
-    -e "CREATE DATABASE IF NOT EXISTS \`$dbName;"
-
-& $mysql `
     --protocol=TCP `
+    -u root `
+    -p$rootPassword `
+    -e "CREATE DATABASE IF NOT EXISTS $dbName;"
+
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to create database"
+}
+
+# --------------------------------
+# Create application user
+# --------------------------------
+& $mysql `
     -h 127.0.0.1 `
     -P $port `
+    --protocol=TCP `
     -u root `
+    -p$rootPassword `
     -e "CREATE USER IF NOT EXISTS '$user'@'%' IDENTIFIED BY '$userPassword';"
 
 & $mysql `
-    --protocol=TCP `
     -h 127.0.0.1 `
     -P $port `
+    --protocol=TCP `
     -u root `
-    -e "GRANT ALL PRIVILEGES ON \`$dbName\`.* TO '$user'@'%';"
+    -p$rootPassword `
+    -e "GRANT ALL PRIVILEGES ON $dbName.* TO '$user'@'%';"
 
 & $mysql `
-    --protocol=TCP `
     -h 127.0.0.1 `
     -P $port `
+    --protocol=TCP `
     -u root `
+    -p$rootPassword `
     -e "FLUSH PRIVILEGES;"
 
+# --------------------------------
+# Final validation
+# --------------------------------
+& $mysql `
+    -h 127.0.0.1 `
+    -P $port `
+    --protocol=TCP `
+    -u root `
+    -p$rootPassword `
+    -e "SELECT VERSION();"
+
+if ($LASTEXITCODE -ne 0) {
+    throw "Final MySQL validation failed"
+}
+
 Write-Host "✅ MySQL configured successfully"
+
+# Keep process alive in GitHub Actions
+Wait-Process -Id $mysqlProcess.Id
