@@ -4,7 +4,7 @@
 $ErrorActionPreference = "Stop"
 
 # --------------------------------
-# Input parameters from environment
+# Inputs
 # --------------------------------
 $rootPassword  = $env:mysql_root_password
 $port          = $env:mysql_port
@@ -19,14 +19,14 @@ if (-not $user) { $user = "dev" }
 if (-not $userPassword) { $userPassword = "devpass" }
 
 # --------------------------------
-# MySQL paths
+# Paths
 # --------------------------------
 $mysqlHome = "C:\Program Files\MySQL\MySQL Server 8.0\bin"
 $mysqld = Join-Path $mysqlHome "mysqld.exe"
 $mysql  = Join-Path $mysqlHome "mysql.exe"
 
 # --------------------------------
-# Data directory
+# Data dir reset
 # --------------------------------
 $dataDir = "C:\mysql-data"
 
@@ -37,7 +37,7 @@ if (Test-Path $dataDir) {
 New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
 
 # --------------------------------
-# Initialize MySQL (CRITICAL)
+# INIT DATABASE (CRITICAL FIX)
 # --------------------------------
 & $mysqld --initialize-insecure --datadir=$dataDir
 
@@ -46,24 +46,24 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # --------------------------------
-# Start MySQL server
+# START MYSQL
 # --------------------------------
 $mysqlProcess = Start-Process `
     -FilePath $mysqld `
     -ArgumentList @(
         "--datadir=$dataDir",
         "--port=$port",
-        "--bind-address=0.0.0.0"
+        "--bind-address=0.0.0.0",
+        "--console"
     ) `
     -PassThru
 
 # --------------------------------
-# Wait for MySQL to be ready (NO AUTH YET)
+# STEP 1: WAIT TCP (server boot only)
 # --------------------------------
 $timeout = 40
 
 while ($timeout -gt 0) {
-
     $tcp = Test-NetConnection 127.0.0.1 -Port $port -WarningAction SilentlyContinue
 
     if ($tcp.TcpTestSucceeded) {
@@ -79,21 +79,47 @@ if ($timeout -le 0) {
 }
 
 # --------------------------------
-# Set root password
+# STEP 2: WAIT MYSQL READY (NO AUTH)
+# --------------------------------
+$timeout = 40
+
+while ($timeout -gt 0) {
+    & $mysql `
+        -h 127.0.0.1 `
+        -P $port `
+        --protocol=TCP `
+        -u root `
+        -e "SELECT 1;" 2>$null
+
+    if ($LASTEXITCODE -eq 0) {
+        break
+    }
+
+    Start-Sleep 1
+    $timeout--
+}
+
+if ($timeout -le 0) {
+    throw "MySQL not ready for SQL execution"
+}
+
+# --------------------------------
+# STEP 3: BOOTSTRAP AUTH SAFELY
+# (root starts without password)
 # --------------------------------
 & $mysql `
     -h 127.0.0.1 `
     -P $port `
     --protocol=TCP `
     -u root `
-    -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$rootPassword';"
+    -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$rootPassword'; FLUSH PRIVILEGES;"
 
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to set root password"
 }
 
 # --------------------------------
-# Enable remote root
+# STEP 4: VERIFY AUTH SWITCH
 # --------------------------------
 & $mysql `
     -h 127.0.0.1 `
@@ -101,18 +127,14 @@ if ($LASTEXITCODE -ne 0) {
     --protocol=TCP `
     -u root `
     -p$rootPassword `
-    -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '$rootPassword';"
+    -e "SELECT 1;"
 
-& $mysql `
-    -h 127.0.0.1 `
-    -P $port `
-    --protocol=TCP `
-    -u root `
-    -p$rootPassword `
-    -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
+if ($LASTEXITCODE -ne 0) {
+    throw "Root authentication failed after password setup"
+}
 
 # --------------------------------
-# Create database
+# STEP 5: PROVISION DATABASE
 # --------------------------------
 & $mysql `
     -h 127.0.0.1 `
@@ -127,7 +149,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # --------------------------------
-# Create application user
+# STEP 6: CREATE USER
 # --------------------------------
 & $mysql `
     -h 127.0.0.1 `
@@ -143,18 +165,10 @@ if ($LASTEXITCODE -ne 0) {
     --protocol=TCP `
     -u root `
     -p$rootPassword `
-    -e "GRANT ALL PRIVILEGES ON $dbName.* TO '$user'@'%';"
-
-& $mysql `
-    -h 127.0.0.1 `
-    -P $port `
-    --protocol=TCP `
-    -u root `
-    -p$rootPassword `
-    -e "FLUSH PRIVILEGES;"
+    -e "GRANT ALL PRIVILEGES ON $dbName.* TO '$user'@'%'; FLUSH PRIVILEGES;"
 
 # --------------------------------
-# Final validation
+# STEP 7: FINAL VALIDATION
 # --------------------------------
 & $mysql `
     -h 127.0.0.1 `
@@ -165,7 +179,10 @@ if ($LASTEXITCODE -ne 0) {
     -e "SELECT VERSION();"
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Final MySQL validation failed"
+    throw "Final validation failed"
 }
 
 Write-Host "✅ MySQL configured successfully"
+
+# keep alive for GitHub Actions
+Wait-Process -Id $mysqlProcess.Id
