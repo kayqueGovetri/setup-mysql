@@ -32,81 +32,85 @@ $MYSQL_USER_PASSWORD = if ($env:mysql_password) {
     "devpass"
 }
 
+# MySQL 8.4 paths
+$MYSQL_BIN = "C:\Program Files\MySQL\MySQL Server 8.4\bin"
+$MYSQLD = Join-Path $MYSQL_BIN "mysqld.exe"
+$MYSQL = Join-Path $MYSQL_BIN "mysql.exe"
+
+# Initialize MySQL
 New-Item -ItemType Directory -Force -Path C:\mysql-data
 
-& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe" `
-  --initialize-insecure `
-  --datadir=C:\mysql-data
+& $MYSQLD `
+    --initialize-insecure `
+    --datadir=C:\mysql-data
 
 Start-Process `
-  -FilePath "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe" `
-  -ArgumentList `
-  "--datadir=C:\mysql-data",
-  "--port=$MYSQL_PORT",
-  "--bind-address=$MYSQL_HOST"
+    -FilePath $MYSQLD `
+    -ArgumentList `
+    "--datadir=C:\mysql-data",
+    "--port=$MYSQL_PORT",
+    "--bind-address=$MYSQL_HOST"
 
 Start-Sleep 20
-
-$mysql = "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"
 
 # --------------------------------
 # ROOT SETUP
 # --------------------------------
 
-& $mysql `
-  --protocol=TCP `
-  -h $MYSQL_HOST `
-  -P $MYSQL_PORT `
-  -u root `
-  -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$MYSQL_ROOT_PASSWORD';"
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$MYSQL_ROOT_PASSWORD';"
 
-& $mysql `
-  --protocol=TCP `
-  -h $MYSQL_HOST `
-  -P $MYSQL_PORT `
-  -u root `
-  "-p$MYSQL_ROOT_PASSWORD" `
-  -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '$MYSQL_ROOT_PASSWORD';"
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    "-p$MYSQL_ROOT_PASSWORD" `
+    -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '$MYSQL_ROOT_PASSWORD';"
 
-& $mysql `
-  --protocol=TCP `
-  -h $MYSQL_HOST `
-  -P $MYSQL_PORT `
-  -u root `
-  "-p$MYSQL_ROOT_PASSWORD" `
-  -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    "-p$MYSQL_ROOT_PASSWORD" `
+    -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
 
-& $mysql `
-  --protocol=TCP `
-  -h $MYSQL_HOST `
-  -P $MYSQL_PORT `
-  -u root `
-  "-p$MYSQL_ROOT_PASSWORD" `
-  -e "FLUSH PRIVILEGES;"
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    "-p$MYSQL_ROOT_PASSWORD" `
+    -e "FLUSH PRIVILEGES;"
 
 # --------------------------------
 # DATABASE
 # --------------------------------
 
-& $mysql `
-  --protocol=TCP `
-  -h $MYSQL_HOST `
-  -P $MYSQL_PORT `
-  -u root `
-  "-p$MYSQL_ROOT_PASSWORD" `
-  -e "CREATE DATABASE IF NOT EXISTS ``$MYSQL_DATABASE``;"
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    "-p$MYSQL_ROOT_PASSWORD" `
+    -e "CREATE DATABASE IF NOT EXISTS ``$MYSQL_DATABASE``;"
 
 # --------------------------------
 # USER
 # --------------------------------
 
-& $mysql `
-  --protocol=TCP `
-  -h $MYSQL_HOST `
-  -P $MYSQL_PORT `
-  -u root `
-  "-p$MYSQL_ROOT_PASSWORD" `
-  -e "
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    "-p$MYSQL_ROOT_PASSWORD" `
+    -e "
 CREATE USER IF NOT EXISTS '$MYSQL_USER'@'localhost' IDENTIFIED BY '$MYSQL_USER_PASSWORD';
 CREATE USER IF NOT EXISTS '$MYSQL_USER'@'127.0.0.1' IDENTIFIED BY '$MYSQL_USER_PASSWORD';
 GRANT ALL PRIVILEGES ON ``$MYSQL_DATABASE``.* TO '$MYSQL_USER'@'localhost';
@@ -118,18 +122,18 @@ FLUSH PRIVILEGES;
 # VERIFY
 # --------------------------------
 
-& $mysql `
-  --protocol=TCP `
-  -h $MYSQL_HOST `
-  -P $MYSQL_PORT `
-  -u root `
-  "-p$MYSQL_ROOT_PASSWORD" `
-  -e "SHOW DATABASES;"
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    "-p$MYSQL_ROOT_PASSWORD" `
+    -e "SHOW DATABASES;"
 
-& $mysql `
-  --protocol=TCP `
-  -h $MYSQL_HOST `
-  -P $MYSQL_PORT `
-  -u root `
-  "-p$MYSQL_ROOT_PASSWORD" `
-  -e "SELECT VERSION();"
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    "-p$MYSQL_ROOT_PASSWORD" `
+    -e "SELECT VERSION();"
