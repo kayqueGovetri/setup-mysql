@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 
-PORT="${INPUT_MYSQL_PORT:-32768}"
-ROOT_PASSWORD="${INPUT_MYSQL_ROOT_PASSWORD:-root}"
-DATABASE="${INPUT_MYSQL_DATABASE:-}"
-USER="${INPUT_MYSQL_USER:-}"
-USER_PASSWORD="${INPUT_MYSQL_PASSWORD:-}"
+PORT="${mysql_port:-32768}"
+ROOT_PASSWORD="${mysql_root_password:-root}"
+DATABASE="${mysql_database:-}"
+USER="${mysql_user:-}"
+USER_PASSWORD="${mysql_password:-}"
 
 echo "### Installing MySQL on macOS"
 brew update
