@@ -1,104 +1,139 @@
+
+# Configuration
+$MYSQL_HOST = "127.0.0.1"
+
+$MYSQL_PORT = if ($env:mysql_port) {
+    [int]$env:mysql_port
+} else {
+    32768
+}
+
+$MYSQL_ROOT_PASSWORD = if ($env:mysql_root_password) {
+    $env:mysql_root_password
+} else {
+    "root"
+}
+
+$MYSQL_DATABASE = if ($env:mysql_database) {
+    $env:mysql_database
+} else {
+    "my_db"
+}
+
+$MYSQL_USER = if ($env:mysql_user) {
+    $env:mysql_user
+} else {
+    "dev"
+}
+
+$MYSQL_USER_PASSWORD = if ($env:mysql_password) {
+    $env:mysql_password
+} else {
+    "devpass"
+}
+
+# MySQL 8.4 paths
+$MYSQL_BIN = "C:\Program Files\MySQL\MySQL Server 8.4\bin"
+$MYSQLD = Join-Path $MYSQL_BIN "mysqld.exe"
+$MYSQL = Join-Path $MYSQL_BIN "mysql.exe"
+
+# Initialize MySQL
 New-Item -ItemType Directory -Force -Path C:\mysql-data
 
-& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe" `
-  --initialize-insecure `
-  --datadir=C:\mysql-data
+& $MYSQLD `
+    --initialize-insecure `
+    --datadir=C:\mysql-data
 
 Start-Process `
-  -FilePath "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe" `
-  -ArgumentList `
-  "--datadir=C:\mysql-data",
-  "--port=32768",
-  "--bind-address=0.0.0.0"
+    -FilePath $MYSQLD `
+    -ArgumentList `
+    "--datadir=C:\mysql-data",
+    "--port=$MYSQL_PORT",
+    "--bind-address=$MYSQL_HOST"
 
 Start-Sleep 20
 
-$mysql = "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"
-
 # --------------------------------
-# ROOT SETUP (mantido igual)
+# ROOT SETUP
 # --------------------------------
-& $mysql `
-  --protocol=TCP `
-  -h 127.0.0.1 `
-  -P 32768 `
-  -u root `
-  -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';"
 
-& $mysql `
-  --protocol=TCP `
-  -h 127.0.0.1 `
-  -P 32768 `
-  -u root `
-  -proot `
-  -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY 'root';"
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$MYSQL_ROOT_PASSWORD';"
 
-& $mysql `
-  --protocol=TCP `
-  -h 127.0.0.1 `
-  -P 32768 `
-  -u root `
-  -proot `
-  -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    "-p$MYSQL_ROOT_PASSWORD" `
+    -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '$MYSQL_ROOT_PASSWORD';"
 
-& $mysql `
-  --protocol=TCP `
-  -h 127.0.0.1 `
-  -P 32768 `
-  -u root `
-  -proot `
-  -e "FLUSH PRIVILEGES;"
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    "-p$MYSQL_ROOT_PASSWORD" `
+    -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;"
+
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    "-p$MYSQL_ROOT_PASSWORD" `
+    -e "FLUSH PRIVILEGES;"
 
 # --------------------------------
 # DATABASE
 # --------------------------------
-& $mysql `
-  --protocol=TCP `
-  -h 127.0.0.1 `
-  -P 32768 `
-  -u root `
-  -proot `
-  -e "CREATE DATABASE IF NOT EXISTS my_db;"
+
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    "-p$MYSQL_ROOT_PASSWORD" `
+    -e "CREATE DATABASE IF NOT EXISTS ``$MYSQL_DATABASE``;"
 
 # --------------------------------
-# USER DINÂMICO (NOVO)
+# USER
 # --------------------------------
 
-$user = $env:mysql_user
-$userPassword = $env:mysql_password
-
-if (-not $user) { $user = "dev" }
-if (-not $userPassword) { $userPassword = "devpass" }
-
-& $mysql `
-  --protocol=TCP `
-  -h 127.0.0.1 `
-  -P 32768 `
-  -u root `
-  -proot `
-  -e "
-CREATE USER IF NOT EXISTS '$user'@'localhost' IDENTIFIED BY '$userPassword';
-CREATE USER IF NOT EXISTS '$user'@'127.0.0.1' IDENTIFIED BY '$userPassword';
-GRANT ALL PRIVILEGES ON my_db.* TO '$user'@'localhost';
-GRANT ALL PRIVILEGES ON my_db.* TO '$user'@'127.0.0.1';
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    "-p$MYSQL_ROOT_PASSWORD" `
+    -e "
+CREATE USER IF NOT EXISTS '$MYSQL_USER'@'localhost' IDENTIFIED BY '$MYSQL_USER_PASSWORD';
+CREATE USER IF NOT EXISTS '$MYSQL_USER'@'127.0.0.1' IDENTIFIED BY '$MYSQL_USER_PASSWORD';
+GRANT ALL PRIVILEGES ON ``$MYSQL_DATABASE``.* TO '$MYSQL_USER'@'localhost';
+GRANT ALL PRIVILEGES ON ``$MYSQL_DATABASE``.* TO '$MYSQL_USER'@'127.0.0.1';
 FLUSH PRIVILEGES;
 "
 
 # --------------------------------
 # VERIFY
 # --------------------------------
-& $mysql `
-  --protocol=TCP `
-  -h 127.0.0.1 `
-  -P 32768 `
-  -u root `
-  -proot `
-  -e "SHOW DATABASES;"
 
-& $mysql `
-  --protocol=TCP `
-  -h 127.0.0.1 `
-  -P 32768 `
-  -u root `
-  -proot `
-  -e "SELECT VERSION();"
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    "-p$MYSQL_ROOT_PASSWORD" `
+    -e "SHOW DATABASES;"
+
+& $MYSQL `
+    --protocol=TCP `
+    -h $MYSQL_HOST `
+    -P $MYSQL_PORT `
+    -u root `
+    "-p$MYSQL_ROOT_PASSWORD" `
+    -e "SELECT VERSION();"
