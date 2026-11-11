@@ -1,3 +1,22 @@
+# Configuration
+$MYSQL_HOST = "127.0.0.1"
+
+$MYSQL_PORT = if ($env:mysql_port) {
+    [int]$env:mysql_port
+} else {
+    32768
+}
+
+$MYSQL_ROOT_PASSWORD = if ($env:mysql_root_password) {
+    $env:mysql_root_password
+} else {
+    "root"
+}
+
+$MYSQL_DATABASE = $env:mysql_database
+$MYSQL_USER = $env:mysql_user
+$MYSQL_USER_PASSWORD = $env:mysql_password
+
 New-Item -ItemType Directory -Force -Path C:\mysql-data
 
 & "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe" `
